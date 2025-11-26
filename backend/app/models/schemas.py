@@ -48,6 +48,7 @@ class ClassificationResponse(BaseModel):
     confidence: float
     ai_model: str
     created_at: datetime
+    reasoning: Optional[str] = None
     
     class Config:
         from_attributes = True

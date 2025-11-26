@@ -3,6 +3,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.schemas import OperatorFeedbackCreate, OperatorFeedbackResponse
 from app.models.database import OperatorFeedback
 from app.database import get_session
+from app.routes.ws import notify_operator, notify_all_operators
 from uuid import uuid4, UUID
 import logging
 
@@ -46,7 +47,23 @@ async def submit_feedback(
         session.add(feedback)
         await session.commit()
         
-        logger.info(f"Feedback submitted: {feedback.id} by operator: {feedback_data.operator_id}")
+        logger.info(
+            f"✅ Feedback submitted: {feedback.id} "
+            f"by operator: {feedback_data.operator_id} "
+            f"type: {feedback_data.feedback_type}"
+        )
+        
+        # Notify other operators via WebSocket
+        await notify_operator(
+            feedback_data.operator_id,
+            {
+                "type": "feedback_received",
+                "feedback_type": feedback_data.feedback_type,
+                "scenario": str(feedback_data.suggested_scenario) if feedback_data.suggested_scenario else None,
+                "message": f"Feedback submitted: {feedback_data.feedback_type}",
+                "message_id": str(feedback.message_id),
+            }
+        )
         
         # TODO: Здесь можно запустить переобучение модели (в следующем промпте)
         

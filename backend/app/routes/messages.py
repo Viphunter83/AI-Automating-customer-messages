@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.schemas import MessageCreate, MessageResponse, ClassificationResponse, MessageTypeEnum
@@ -7,8 +7,11 @@ from app.database import get_session
 from app.services.ai_classifier import AIClassifier
 from app.services.text_processor import TextProcessor
 from app.services.response_manager import ResponseManager
+from app.services.webhook_sender import WebhookSender
+from app.routes.ws import notify_all_operators
 from uuid import uuid4
 import logging
+from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -17,21 +20,27 @@ router = APIRouter(prefix="/api/messages", tags=["messages"])
 # Initialize services
 text_processor = TextProcessor()
 ai_classifier = AIClassifier()
+webhook_sender = WebhookSender()
 
 @router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_message(
     message_data: MessageCreate,
-    session: AsyncSession = Depends(get_session)
+    session: AsyncSession = Depends(get_session),
+    x_webhook_url: Optional[str] = Header(None, alias="X-Webhook-URL"),
 ):
     """
     Main webhook endpoint for receiving messages from chat platform.
+    
+    Headers:
+        X-Webhook-URL: Optional URL to send response back to
     
     Flow:
     1. Save original message
     2. Clean and process text
     3. Classify using ИИ
     4. Create response
-    5. Return result
+    5. Send webhook back to platform
+    6. Return result
     
     Expected JSON:
     {
@@ -64,6 +73,17 @@ async def create_message(
                 message_data.client_id,
                 reason="empty_text"
             )
+            
+            # Send to webhook
+            webhook_result = None
+            if response_msg:
+                webhook_sender_instance = WebhookSender(platform_webhook_url=x_webhook_url) if x_webhook_url else webhook_sender
+                webhook_result = await webhook_sender_instance.send_response(
+                    client_id=message_data.client_id,
+                    response_text=response_text,
+                    message_id=str(response_msg.id),
+                )
+            
             await session.commit()
             return {
                 "status": "fallback",
@@ -71,6 +91,7 @@ async def create_message(
                 "response_message_id": str(response_msg.id) if response_msg else None,
                 "response_text": response_text,
                 "reason": "Message is empty or noise",
+                "webhook": webhook_result or {"success": False, "reason": "no_response_created"},
             }
         
         # ============ STEP 3: Classify using ИИ ============
@@ -85,6 +106,17 @@ async def create_message(
                 message_data.client_id,
                 reason="classification_error"
             )
+            
+            # Send to webhook
+            webhook_result = None
+            if response_msg:
+                webhook_sender_instance = WebhookSender(platform_webhook_url=x_webhook_url) if x_webhook_url else webhook_sender
+                webhook_result = await webhook_sender_instance.send_response(
+                    client_id=message_data.client_id,
+                    response_text=response_text,
+                    message_id=str(response_msg.id),
+                )
+            
             await session.commit()
             return {
                 "status": "fallback",
@@ -92,6 +124,7 @@ async def create_message(
                 "response_message_id": str(response_msg.id) if response_msg else None,
                 "response_text": response_text,
                 "reason": "Classification error",
+                "webhook": webhook_result or {"success": False, "reason": "no_response_created"},
             }
         
         scenario = classification_result.get("scenario")
@@ -153,7 +186,31 @@ async def create_message(
         
         logger.info(f"✅ Created response: {response_msg.id if response_msg else 'None'}")
         
-        # ============ STEP 6: Mark original as processed ============
+        # ============ STEP 6: Send to webhook ============
+        webhook_result = None
+        if response_msg:
+            webhook_sender_instance = WebhookSender(platform_webhook_url=x_webhook_url) if x_webhook_url else webhook_sender
+            webhook_result = await webhook_sender_instance.send_response(
+                client_id=message_data.client_id,
+                response_text=response_text,
+                message_id=str(response_msg.id),
+                classification={
+                    "scenario": scenario,
+                    "confidence": confidence,
+                }
+            )
+            logger.info(f"📤 Webhook send result: {webhook_result}")
+        
+        # ============ STEP 7: Notify operators via WebSocket ============
+        if scenario == "UNKNOWN":
+            await notify_all_operators({
+                "type": "escalation",
+                "client_id": message_data.client_id,
+                "message": f"New escalation from {message_data.client_id}",
+                "scenario": scenario,
+            })
+        
+        # ============ STEP 8: Mark original as processed ============
         original_message.is_processed = True
         await session.commit()
         
@@ -172,7 +229,8 @@ async def create_message(
                 "message_id": str(response_msg.id) if response_msg else None,
                 "text": response_text,
                 "type": response_msg.message_type.value if response_msg else "unknown",
-            }
+            },
+            "webhook": webhook_result or {"success": False, "reason": "no_webhook_configured"}
         }
     
     except Exception as e:
@@ -243,6 +301,7 @@ async def get_client_classifications(
                 confidence=c.confidence,
                 ai_model=c.ai_model,
                 created_at=c.created_at,
+                reasoning=c.reasoning,
             )
             for c in classifications
         ]
