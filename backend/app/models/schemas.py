@@ -126,3 +126,26 @@ class OperatorSessionLogResponse(BaseModel):
     class Config:
         from_attributes = True
 
+# ========== CHAT SESSION SCHEMAS ==========
+
+class DialogStatusEnum(str, Enum):
+    OPEN = "open"
+    CLOSED = "closed"
+    ESCALATED = "escalated"
+
+class ChatSessionResponse(BaseModel):
+    id: str
+    client_id: str
+    status: DialogStatusEnum
+    last_activity_at: datetime
+    closed_at: Optional[datetime] = None
+    farewell_sent_at: Optional[datetime] = None
+    created_at: datetime
+    updated_at: datetime
+    
+    class Config:
+        from_attributes = True
+
+class ChatSessionUpdate(BaseModel):
+    status: Optional[DialogStatusEnum] = None
+

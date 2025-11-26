@@ -1,12 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { useChatSession } from '@/hooks/useMessages'
+import { useChatSession, useDialog, useCloseDialog, useReopenDialog } from '@/hooks/useMessages'
 import { ChatHistory } from '@/components/ChatHistory'
 import { MessageFeedback } from '@/components/MessageFeedback'
-import { Input } from '@/components/ui/input'
+import { DialogStatusBadge } from '@/components/DialogStatusBadge'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
+import { formatDistanceToNow } from 'date-fns'
+import { ru } from 'date-fns/locale'
 
 interface ClientDashboardProps {
   clientId: string
@@ -15,9 +17,24 @@ interface ClientDashboardProps {
 
 export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) {
   const { messages, isLoading, messageCount } = useChatSession(clientId)
+  const { data: dialog } = useDialog(clientId)
+  const closeDialog = useCloseDialog()
+  const reopenDialog = useReopenDialog()
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   
   const selectedMessage = messages.find(m => m.id === selectedMessageId)
+  
+  const handleCloseDialog = () => {
+    if (dialog?.status === 'open') {
+      closeDialog.mutate(clientId)
+    }
+  }
+
+  const handleReopenDialog = () => {
+    if (dialog?.status === 'closed') {
+      reopenDialog.mutate(clientId)
+    }
+  }
   
   return (
     <div className="flex gap-4 h-full">
@@ -25,11 +42,53 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
       <div className="flex-1 flex flex-col border border-gray-200 rounded-lg">
         <div className="p-4 border-b border-gray-200 bg-gray-50">
           <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-semibold">{clientId}</h3>
-              <p className="text-sm text-gray-600">{messageCount} messages</p>
+            <div className="flex-1">
+              <div className="flex items-center gap-3 mb-2">
+                <h3 className="font-semibold">{clientId}</h3>
+                {dialog && <DialogStatusBadge status={dialog.status} />}
+              </div>
+              <div className="flex items-center gap-4 text-sm text-gray-600">
+                <span>{messageCount} messages</span>
+                {dialog && (
+                  <>
+                    <span>• Активность: {formatDistanceToNow(new Date(dialog.last_activity_at), { 
+                      addSuffix: true, 
+                      locale: ru 
+                    })}</span>
+                    {dialog.farewell_sent_at && (
+                      <span className="text-gray-500">
+                        • Прощание: {formatDistanceToNow(new Date(dialog.farewell_sent_at), { 
+                          addSuffix: true, 
+                          locale: ru 
+                        })}
+                      </span>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
-            <Badge variant="outline">Active</Badge>
+            <div className="flex items-center gap-2">
+              {dialog?.status === 'open' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCloseDialog}
+                  disabled={closeDialog.isPending}
+                >
+                  Закрыть диалог
+                </Button>
+              )}
+              {dialog?.status === 'closed' && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleReopenDialog}
+                  disabled={reopenDialog.isPending}
+                >
+                  Переоткрыть
+                </Button>
+              )}
+            </div>
           </div>
         </div>
         

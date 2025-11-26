@@ -9,6 +9,7 @@ from app.services.text_processor import TextProcessor
 from app.services.response_manager import ResponseManager
 from app.services.webhook_sender import WebhookSender
 from app.services.reminder_service import ReminderService, ReminderType
+from app.services.dialog_auto_close import DialogAutoCloseService
 from app.routes.ws import notify_all_operators
 from uuid import uuid4
 import logging
@@ -58,6 +59,10 @@ async def create_message(
         )
         existing_messages = existing_messages_result.scalars().all()
         is_first_message = len(existing_messages) == 0
+        
+        # Update dialog activity
+        dialog_service = DialogAutoCloseService(session)
+        await dialog_service.update_activity(message_data.client_id)
         
         # ============ STEP 1: Save original message ============
         original_message = Message(

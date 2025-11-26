@@ -1,8 +1,8 @@
 'use client'
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { messagesAPI, feedbackAPI } from '@/lib/api'
-import { Message, Classification, MessageWithClassification } from '@/lib/types'
+import { messagesAPI, feedbackAPI, dialogsApi } from '@/lib/api'
+import { Message, Classification, MessageWithClassification, ChatSession } from '@/lib/types'
 
 // Hook для получения сообщений клиента
 export function useMessages(clientId: string) {
@@ -73,4 +73,45 @@ export function useChatSession(clientId: string) {
     isLoading: messagesLoading || classificationsLoading,
     messageCount: messages.length,
   }
+}
+
+export function useDialog(clientId: string | null) {
+  return useQuery({
+    queryKey: ['dialog', clientId],
+    queryFn: () => dialogsApi.get(clientId!).then(res => res.data),
+    enabled: !!clientId,
+    refetchInterval: 5000, // Poll every 5 seconds
+  })
+}
+
+export function useDialogStats(clientId: string | null) {
+  return useQuery({
+    queryKey: ['dialogStats', clientId],
+    queryFn: () => dialogsApi.getStats(clientId!).then(res => res.data),
+    enabled: !!clientId,
+  })
+}
+
+export function useCloseDialog() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: (clientId: string) => dialogsApi.close(clientId),
+    onSuccess: (_, clientId) => {
+      queryClient.invalidateQueries({ queryKey: ['dialog', clientId] })
+      queryClient.invalidateQueries({ queryKey: ['dialogStats', clientId] })
+    },
+  })
+}
+
+export function useReopenDialog() {
+  const queryClient = useQueryClient()
+  
+  return useMutation({
+    mutationFn: (clientId: string) => dialogsApi.reopen(clientId),
+    onSuccess: (_, clientId) => {
+      queryClient.invalidateQueries({ queryKey: ['dialog', clientId] })
+      queryClient.invalidateQueries({ queryKey: ['dialogStats', clientId] })
+    },
+  })
 }

@@ -120,3 +120,20 @@ class Reminder(Base):
     # Relationships
     message = relationship("Message", foreign_keys=[message_id])
 
+class DialogStatus(str, Enum):
+    OPEN = "open"
+    CLOSED = "closed"
+    ESCALATED = "escalated"
+
+class ChatSession(Base):
+    __tablename__ = "chat_sessions"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id = Column(String(255), nullable=False, unique=True, index=True)
+    status = Column(SQLEnum(DialogStatus), default=DialogStatus.OPEN, nullable=False, index=True)
+    last_activity_at = Column(DateTime, nullable=False, index=True, default=datetime.utcnow)
+    closed_at = Column(DateTime, nullable=True)
+    farewell_sent_at = Column(DateTime, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+

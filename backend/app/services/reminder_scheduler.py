@@ -9,6 +9,7 @@ from app.database import async_session_maker
 from app.services.reminder_service import ReminderService
 from app.services.response_manager import ResponseManager
 from app.services.webhook_sender import WebhookSender
+from app.services.dialog_auto_close import DialogAutoCloseService
 from app.models.database import Message, MessageType, ReminderType, Reminder
 from app.config import get_settings
 import uuid
@@ -127,18 +128,47 @@ class ReminderScheduler:
                     exc_info=True
                 )
     
+    async def process_inactive_dialogs(self):
+        """Job to process inactive dialogs: send farewell and close"""
+        logger.debug("Checking for inactive dialogs...")
+        async with async_session_maker() as session:
+            try:
+                dialog_service = DialogAutoCloseService(session)
+                stats = await dialog_service.process_inactive_sessions()
+                
+                if stats["farewell_sent"] > 0 or stats["sessions_closed"] > 0:
+                    logger.info(
+                        f"Processed inactive dialogs: "
+                        f"{stats['farewell_sent']} farewells sent, "
+                        f"{stats['sessions_closed']} sessions closed"
+                    )
+            except Exception as e:
+                logger.error(
+                    f"Error processing inactive dialogs: {type(e).__name__}: {str(e)}",
+                    exc_info=True
+                )
+    
     def start(self):
         """Start the reminder scheduler"""
-        # Run every minute to check for pending reminders
-        self.scheduler.add_job(
-            self.process_pending_reminders,
-            trigger=IntervalTrigger(minutes=1),
-            id="process_reminders",
-            replace_existing=True
-        )
-        
-        self.scheduler.start()
-        logger.info("✅ Reminder scheduler started")
+        if not self.scheduler.running:
+            # Add job for processing reminders
+            self.scheduler.add_job(
+                self.process_pending_reminders,
+                IntervalTrigger(minutes=1),
+                id="process_reminders_job",
+                replace_existing=True
+            )
+            # Add job for processing inactive dialogs
+            self.scheduler.add_job(
+                self.process_inactive_dialogs,
+                IntervalTrigger(minutes=1),
+                id="process_inactive_dialogs_job",
+                replace_existing=True
+            )
+            self.scheduler.start()
+            logger.info("✅ Reminder scheduler started (with dialog auto-close)")
+        else:
+            logger.info("Reminder scheduler already running")
     
     def stop(self):
         """Stop the reminder scheduler"""
