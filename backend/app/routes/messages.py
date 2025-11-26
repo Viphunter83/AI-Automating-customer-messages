@@ -2,12 +2,13 @@ from fastapi import APIRouter, Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from app.models.schemas import MessageCreate, MessageResponse, ClassificationResponse, MessageTypeEnum
-from app.models.database import Message, MessageType, Classification, ScenarioType
+from app.models.database import Message, MessageType, Classification, ScenarioType, Reminder
 from app.database import get_session
 from app.services.ai_classifier import AIClassifier
 from app.services.text_processor import TextProcessor
 from app.services.response_manager import ResponseManager
 from app.services.webhook_sender import WebhookSender
+from app.services.reminder_service import ReminderService, ReminderType
 from app.routes.ws import notify_all_operators
 from uuid import uuid4
 import logging
@@ -232,7 +233,38 @@ async def create_message(
                 "is_first_message": is_first_message,
             })
         
-        # ============ STEP 8: Mark original as processed ============
+        # ============ STEP 8: Create reminders if needed ============
+        # Create reminders for messages that need follow-up
+        reminder_service = ReminderService(session)
+        
+        # Create reminders for non-escalated scenarios that might need follow-up
+        if not requires_escalation and scenario not in ["FAREWELL", "UNKNOWN"]:
+            # Create 15-minute reminder
+            await reminder_service.create_reminder(
+                client_id=message_data.client_id,
+                message_id=str(original_message.id),
+                reminder_type=ReminderType.REMINDER_15MIN
+            )
+            
+            # Create 30-minute reminder
+            await reminder_service.create_reminder(
+                client_id=message_data.client_id,
+                message_id=str(original_message.id),
+                reminder_type=ReminderType.REMINDER_30MIN
+            )
+            
+            logger.debug(f"Created reminders for message {original_message.id}")
+        
+        # Cancel any pending reminders if client responded
+        # (This handles the case where client responds before reminder is sent)
+        cancelled = await reminder_service.cancel_client_reminders(
+            client_id=message_data.client_id,
+            after_message_id=str(original_message.id)
+        )
+        if cancelled > 0:
+            logger.debug(f"Cancelled {cancelled} pending reminders for {message_data.client_id}")
+        
+        # ============ STEP 9: Mark original as processed ============
         original_message.is_processed = True
         await session.commit()
         

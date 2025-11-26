@@ -41,16 +41,28 @@ def create_app() -> FastAPI:
         from sqlalchemy.ext.asyncio import AsyncSession
         from app.database import async_session_maker
         from app.services.response_manager import ResponseManager
+        from app.services.reminder_scheduler import ReminderScheduler
         
+        # Initialize default templates
         async with async_session_maker() as session:
             response_manager = ResponseManager(session)
             await response_manager.initialize_default_templates()
+        
+        # Start reminder scheduler
+        reminder_scheduler = ReminderScheduler()
+        reminder_scheduler.start()
+        app.state.reminder_scheduler = reminder_scheduler
         
         logger.info("✅ Application startup complete")
     
     @app.on_event("shutdown")
     async def shutdown():
         logger.info("🛑 Shutting down application...")
+        
+        # Stop reminder scheduler
+        if hasattr(app.state, 'reminder_scheduler'):
+            app.state.reminder_scheduler.stop()
+        
         await close_db()
     
     return app

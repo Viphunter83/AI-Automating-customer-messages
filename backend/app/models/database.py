@@ -100,3 +100,23 @@ class OperatorSessionLog(Base):
     operator_id = Column(String(255), nullable=True)
     resolution_notes = Column(Text, nullable=True)
 
+class ReminderType(str, Enum):
+    REMINDER_15MIN = "reminder_15min"
+    REMINDER_30MIN = "reminder_30min"
+    REMINDER_1DAY = "reminder_1day"
+
+class Reminder(Base):
+    __tablename__ = "reminders"
+    
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    client_id = Column(String(255), nullable=False, index=True)
+    message_id = Column(UUID(as_uuid=True), ForeignKey("messages.id"), nullable=False, index=True)
+    reminder_type = Column(SQLEnum(ReminderType), nullable=False)
+    scheduled_at = Column(DateTime, nullable=False, index=True)
+    sent_at = Column(DateTime, nullable=True)
+    is_cancelled = Column(Boolean, default=False, nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
+    
+    # Relationships
+    message = relationship("Message", foreign_keys=[message_id])
+
