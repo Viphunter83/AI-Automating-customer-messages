@@ -104,18 +104,29 @@ async def update_template(
             detail=f"No template for {scenario_name}"
         )
     
+    # Track if any changes were made
+    has_changes = False
+    
     # Update fields
-    if update_data.template_text:
-        template.template_text = update_data.template_text
+    if update_data.template_text is not None:
+        if template.template_text != update_data.template_text:
+            template.template_text = update_data.template_text
+            has_changes = True
     
     if update_data.requires_params is not None:
-        template.requires_params = update_data.requires_params
+        if template.requires_params != update_data.requires_params:
+            template.requires_params = update_data.requires_params
+            has_changes = True
     
     if update_data.is_active is not None:
-        template.is_active = update_data.is_active
+        if template.is_active != update_data.is_active:
+            template.is_active = update_data.is_active
+            has_changes = True
     
-    template.version += 1
-    template.updated_at = datetime.utcnow()
+    # Only increment version and update timestamp if there were actual changes
+    if has_changes:
+        template.version += 1
+        template.updated_at = datetime.utcnow()
     
     await session.commit()
     
