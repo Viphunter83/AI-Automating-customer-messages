@@ -93,16 +93,20 @@ class ExportService:
                     "timestamp": msg.created_at.isoformat(),
                     "type": str(msg.message_type.value),
                     "content": msg.content,
-                    "classification": {
-                        "scenario": str(classifications_dict[str(msg.id)].detected_scenario.value),
-                        "confidence": classifications_dict[str(msg.id)].confidence,
-                        "reasoning": classifications_dict[str(msg.id)].reasoning
-                    } if str(msg.id) in classifications_dict else None,
-                    "feedback": {
-                        "type": feedbacks_dict[str(msg.id)].feedback_type,
-                        "suggested": str(feedbacks_dict[str(msg.id)].suggested_scenario.value) if feedbacks_dict[str(msg.id)].suggested_scenario else None,
-                        "comment": feedbacks_dict[str(msg.id)].comment
-                    } if str(msg.id) in feedbacks_dict else None
+                    "classification": (
+                        {
+                            "scenario": str(classifications_dict[str(msg.id)].detected_scenario.value),
+                            "confidence": classifications_dict[str(msg.id)].confidence,
+                            "reasoning": classifications_dict[str(msg.id)].reasoning
+                        } if str(msg.id) in classifications_dict else None
+                    ),
+                    "feedback": (
+                        {
+                            "type": feedbacks_dict[str(msg.id)].feedback_type,
+                            "suggested": str(feedbacks_dict[str(msg.id)].suggested_scenario.value) if feedbacks_dict[str(msg.id)].suggested_scenario else None,
+                            "comment": feedbacks_dict[str(msg.id)].comment
+                        } if str(msg.id) in feedbacks_dict else None
+                    )
                 }
                 for msg in messages
             ]
