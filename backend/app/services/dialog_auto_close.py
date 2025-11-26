@@ -198,13 +198,33 @@ class DialogAutoCloseService:
         await self.session.commit()
         
         # Then, close sessions that have been inactive long enough
+        # Only close sessions where:
+        # 1. Farewell was sent AND enough time has passed since farewell (1 minute after farewell = 3 minutes total)
+        # 2. OR no farewell was sent but timeout exceeded (fallback for edge cases)
         inactive_sessions = await self.get_inactive_sessions()
+        now = datetime.utcnow()
         
         for session in inactive_sessions:
-            # Only close if farewell was sent (or if it's been more than timeout)
-            if session.farewell_sent_at or (
-                datetime.utcnow() - session.last_activity_at
-            ).total_seconds() / 60 >= self.inactivity_timeout_minutes:
+            should_close = False
+            
+            if session.farewell_sent_at:
+                # Farewell was sent - close only if enough time passed since farewell
+                # We sent farewell at farewell_delay_minutes (2 min), so we need to wait
+                # additional (inactivity_timeout_minutes - farewell_delay_minutes) = 1 minute
+                time_since_farewell = (now - session.farewell_sent_at).total_seconds() / 60
+                time_since_activity = (now - session.last_activity_at).total_seconds() / 60
+                
+                # Close if farewell was sent AND total inactivity >= timeout
+                should_close = (
+                    time_since_farewell >= (self.inactivity_timeout_minutes - self.farewell_delay_minutes) and
+                    time_since_activity >= self.inactivity_timeout_minutes
+                )
+            else:
+                # No farewell sent - close if timeout exceeded (fallback case)
+                time_since_activity = (now - session.last_activity_at).total_seconds() / 60
+                should_close = time_since_activity >= self.inactivity_timeout_minutes
+            
+            if should_close:
                 success = await self.close_session(session.client_id)
                 if success:
                     stats["sessions_closed"] += 1
