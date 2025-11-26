@@ -63,19 +63,24 @@ npm run dev
 
 ## Database Setup
 
-Using Supabase:
+### Для MVP: Локальная PostgreSQL (рекомендуется)
 
-1. Create account at https://supabase.com
-2. Create new project
-3. Copy connection string to backend/.env as DATABASE_URL
-4. Run migrations
+При использовании `docker-compose up` локальная БД создается автоматически. Никаких дополнительных действий не требуется.
 
-Using local PostgreSQL:
+Если запускаете без Docker, создайте локальную БД:
 
 ```bash
 createuser support_user -P  # password: support_pass
 createdb -O support_user ai_support
 ```
+
+### Для Production: Supabase (опционально, на более поздних этапах)
+
+1. Create account at https://supabase.com
+2. Create new project
+3. Copy connection string to backend/.env as DATABASE_URL
+4. Раскомментируйте и заполните SUPABASE_URL и SUPABASE_ANON_KEY в .env
+5. Run migrations
 
 ## Testing
 

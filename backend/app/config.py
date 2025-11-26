@@ -14,8 +14,9 @@ class Settings(BaseSettings):
     
     # Database
     database_url: str
-    supabase_url: str
-    supabase_anon_key: str
+    # Supabase fields (optional, для будущего использования)
+    supabase_url: str = ""
+    supabase_anon_key: str = ""
     
     # OpenAI
     openai_api_key: str
