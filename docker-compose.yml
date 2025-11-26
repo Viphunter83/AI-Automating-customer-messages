@@ -26,16 +26,10 @@ services:
     env_file:
       - ./backend/.env
     environment:
+      # Override DATABASE_URL for Docker network (use postgres service name instead of localhost)
       DATABASE_URL: postgresql+asyncpg://support_user:support_pass@postgres:5432/ai_support
-      SUPABASE_URL: ${SUPABASE_URL}
-      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
-      OPENAI_API_KEY: ${OPENAI_API_KEY}
-      OPENAI_API_BASE: ${OPENAI_API_BASE}
-      OPENAI_MODEL: ${OPENAI_MODEL}
-      DEBUG: ${DEBUG}
-      LOG_LEVEL: ${LOG_LEVEL}
-      SECRET_KEY: ${SECRET_KEY}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      # All other variables (OPENAI_API_KEY, SECRET_KEY, etc.) are loaded from backend/.env
+      # No need to duplicate them here - env_file handles them automatically
     depends_on:
       postgres:
         condition: service_healthy
