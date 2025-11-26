@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import get_settings
-from app.database import init_db, close_db, async_session_maker
+from app.database import init_db, close_db
+from app.middleware.logging import LoggingMiddleware
+from app.middleware.security import SecurityMiddleware
 import logging
 
 logger = logging.getLogger(__name__)
@@ -14,6 +16,12 @@ def create_app() -> FastAPI:
         version=settings.app_version,
         debug=settings.debug,
     )
+    
+    # Add security middleware first
+    app.add_middleware(SecurityMiddleware)
+    
+    # Add logging middleware
+    app.add_middleware(LoggingMiddleware)
     
     # CORS
     app.add_middleware(
@@ -30,7 +38,8 @@ def create_app() -> FastAPI:
         logger.info("🚀 Starting up application...")
         await init_db()
         
-        # Initialize default templates
+        from sqlalchemy.ext.asyncio import AsyncSession
+        from app.database import async_session_maker
         from app.services.response_manager import ResponseManager
         
         async with async_session_maker() as session:

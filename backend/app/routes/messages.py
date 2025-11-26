@@ -51,6 +51,13 @@ async def create_message(
     try:
         logger.info(f"📨 Received message from {message_data.client_id}: {message_data.content[:50]}...")
         
+        # ============ STEP 0: Check if this is first message from client ============
+        existing_messages_result = await session.execute(
+            select(Message).where(Message.client_id == message_data.client_id)
+        )
+        existing_messages = existing_messages_result.scalars().all()
+        is_first_message = len(existing_messages) == 0
+        
         # ============ STEP 1: Save original message ============
         original_message = Message(
             id=uuid4(),
@@ -58,10 +65,11 @@ async def create_message(
             content=message_data.content,
             message_type=MessageType.USER,
             is_processed=False,
+            is_first_message=is_first_message,
         )
         session.add(original_message)
         await session.flush()
-        logger.debug(f"✅ Saved original message: {original_message.id}")
+        logger.debug(f"✅ Saved original message: {original_message.id} (first_message={is_first_message})")
         
         # ============ STEP 2: Process text ============
         processed_text = text_processor.process(message_data.content)
@@ -145,14 +153,25 @@ async def create_message(
         await session.flush()
         logger.debug(f"✅ Saved classification: {classification.id}")
         
-        # ============ STEP 5: Create response ============
+        # ============ STEP 5: Determine escalation requirements ============
+        escalation_scenarios = [
+            "SCHEDULE_CHANGE", "COMPLAINT", "MISSING_TRAINER", 
+            "CROSS_EXTENSION", "UNKNOWN"
+        ]
+        # REFERRAL with phone number also requires escalation
+        requires_escalation = (
+            scenario in escalation_scenarios or
+            (scenario == "REFERRAL" and any(char.isdigit() for char in message_data.content))
+        )
+        
+        # ============ STEP 6: Create response ============
         response_manager = ResponseManager(session)
         response_msg, response_text = await response_manager.create_bot_response(
             scenario=scenario,
             client_id=message_data.client_id,
             original_message_id=str(original_message.id),
             params={"referral_link": f"https://example.com/ref/{message_data.client_id}"},
-            message_type=MessageType.BOT_AUTO if scenario != "UNKNOWN" else MessageType.BOT_ESCALATED
+            message_type=MessageType.BOT_ESCALATED if requires_escalation else MessageType.BOT_AUTO
         )
         
         if not response_msg:
@@ -202,12 +221,15 @@ async def create_message(
             logger.info(f"📤 Webhook send result: {webhook_result}")
         
         # ============ STEP 7: Notify operators via WebSocket ============
-        if scenario == "UNKNOWN":
+        if requires_escalation:
+            priority = "high" if scenario in ["COMPLAINT", "MISSING_TRAINER"] else "medium"
             await notify_all_operators({
                 "type": "escalation",
                 "client_id": message_data.client_id,
                 "message": f"New escalation from {message_data.client_id}",
                 "scenario": scenario,
+                "priority": priority,
+                "is_first_message": is_first_message,
             })
         
         # ============ STEP 8: Mark original as processed ============
@@ -217,8 +239,9 @@ async def create_message(
         logger.info(f"✅ Complete processing for {message_data.client_id}")
         
         return {
-            "status": "success" if scenario != "UNKNOWN" else "escalated",
+            "status": "escalated" if requires_escalation else "success",
             "original_message_id": str(original_message.id),
+            "is_first_message": is_first_message,
             "classification": {
                 "id": str(classification.id),
                 "scenario": scenario,

@@ -1,0 +1,125 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: ai-support-config
+data:
+  OPENAI_API_BASE: https://api.proxyapi.ru/openai/v1
+  LOG_LEVEL: INFO
+  DEBUG: "False"
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ai-support-secrets
+type: Opaque
+stringData:
+  OPENAI_API_KEY: YOUR_KEY_HERE
+  SECRET_KEY: YOUR_SECRET_HERE
+  DATABASE_URL: postgresql+asyncpg://user:password@postgres:5432/ai_support
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-support-backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: ai-support-backend
+  template:
+    metadata:
+      labels:
+        app: ai-support-backend
+    spec:
+      containers:
+      - name: backend
+        image: ghcr.io/yourorg/ai-support/backend:latest
+        ports:
+        - containerPort: 8000
+        envFrom:
+        - configMapRef:
+            name: ai-support-config
+        - secretRef:
+            name: ai-support-secrets
+        livenessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        readinessProbe:
+          httpGet:
+            path: /health
+            port: 8000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-support-backend
+spec:
+  selector:
+    app: ai-support-backend
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 8000
+  type: LoadBalancer
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ai-support-frontend
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: ai-support-frontend
+  template:
+    metadata:
+      labels:
+        app: ai-support-frontend
+    spec:
+      containers:
+      - name: frontend
+        image: ghcr.io/yourorg/ai-support/frontend:latest
+        ports:
+        - containerPort: 3000
+        env:
+        - name: NEXT_PUBLIC_API_URL
+          value: https://api.yourdomain.com
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 3000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "200m"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ai-support-frontend
+spec:
+  selector:
+    app: ai-support-frontend
+  ports:
+  - protocol: TCP
+    port: 80
+    targetPort: 3000
+  type: LoadBalancer
+
