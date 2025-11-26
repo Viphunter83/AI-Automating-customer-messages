@@ -19,6 +19,7 @@ class ScenarioType(str, Enum):
     REVIEW_BONUS = "REVIEW_BONUS"
     CROSS_EXTENSION = "CROSS_EXTENSION"
     UNKNOWN = "UNKNOWN"
+    ESCALATED = "ESCALATED"  # Special scenario for escalation notifications
 
 class MessageTypeEnum(str, Enum):
     USER = "user"

@@ -216,5 +216,14 @@ RESPONSE_TEMPLATES = {
 Мы свяжемся с вами в ближайшее время.""",
         "requires_params": {},
         "description": "Default fallback for unknown scenarios"
+    },
+    "ESCALATED": {
+        "text": """Спасибо за обращение! 
+
+Ваш запрос принят и передан оператору для обработки.
+
+Мы свяжемся с вами в ближайшее время для решения вашего вопроса.""",
+        "requires_params": {},
+        "description": "Message when request is escalated to operator"
     }
 }

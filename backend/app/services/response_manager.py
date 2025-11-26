@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.database import ResponseTemplate, Message, MessageType, ScenarioType
 from app.utils.prompts import RESPONSE_TEMPLATES
+from app.utils.cache import get_cache
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,21 @@ class ResponseManager:
             ResponseTemplate or None if not found
         """
         try:
+            # Handle ESCALATED scenario - use template from RESPONSE_TEMPLATES if not in DB
+            if scenario == "ESCALATED":
+                from app.utils.prompts import RESPONSE_TEMPLATES
+                if "ESCALATED" in RESPONSE_TEMPLATES:
+                    # Create temporary template object
+                    class TempTemplate:
+                        def __init__(self, text, params):
+                            self.template_text = text
+                            self.requires_params = params
+                            self.version = 1
+                            self.is_active = True
+                    
+                    template_data = RESPONSE_TEMPLATES["ESCALATED"]
+                    return TempTemplate(template_data["text"], template_data.get("requires_params", {}))
+            
             result = await self.session.execute(
                 select(ResponseTemplate).where(
                     ResponseTemplate.scenario_name == ScenarioType[scenario],
@@ -79,6 +95,23 @@ class ResponseManager:
             
             return template
         
+        except (KeyError, ValueError) as e:
+            # Scenario not in enum - try RESPONSE_TEMPLATES as fallback
+            logger.debug(f"Scenario {scenario} not in enum, trying RESPONSE_TEMPLATES")
+            from app.utils.prompts import RESPONSE_TEMPLATES
+            if scenario in RESPONSE_TEMPLATES:
+                class TempTemplate:
+                    def __init__(self, text, params):
+                        self.template_text = text
+                        self.requires_params = params
+                        self.version = 1
+                        self.is_active = True
+                
+                template_data = RESPONSE_TEMPLATES[scenario]
+                return TempTemplate(template_data["text"], template_data.get("requires_params", {}))
+            
+            logger.error(f"Error fetching template for {scenario}: {str(e)}")
+            return None
         except Exception as e:
             logger.error(f"Error fetching template for {scenario}: {str(e)}")
             return None

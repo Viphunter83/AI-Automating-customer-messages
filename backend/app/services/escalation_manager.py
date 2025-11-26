@@ -67,6 +67,16 @@ class EscalationManager:
             reasons.append(EscalationReason.REPEATED_FAILED)
             base_level = EscalationLevel.HIGH if len(reasons) > 1 else EscalationLevel.MEDIUM
         
+        # Check 3.5: Repeated requests in short time (new trigger)
+        recent_requests = await self._get_recent_requests(client_id, minutes=10)
+        if recent_requests >= 3:
+            reasons.append(EscalationReason.REPEATED_FAILED)
+            base_level = EscalationLevel.HIGH
+            logger.warning(
+                f"⚠️ Repeated requests trigger: client {client_id} sent {recent_requests} "
+                f"messages in last 10 minutes - escalating"
+            )
+        
         # Check 4: Check if client has complaints
         if await self._has_recent_escalations(client_id, hours=1):
             reasons.append(EscalationReason.COMPLAINT)
@@ -79,6 +89,27 @@ class EscalationManager:
             "priority_queue": self._get_priority_queue(base_level),
             "confidence": confidence,
         }
+    
+    async def _get_recent_requests(
+        self,
+        client_id: str,
+        minutes: int = 10
+    ) -> int:
+        """Count recent messages from client (for repeated requests trigger)"""
+        cutoff_time = datetime.utcnow() - timedelta(minutes=minutes)
+        
+        result = await self.session.execute(
+            select(Message)
+            .where(
+                and_(
+                    Message.client_id == client_id,
+                    Message.created_at >= cutoff_time,
+                    Message.message_type == MessageType.USER
+                )
+            )
+        )
+        
+        return len(result.scalars().all())
     
     async def _get_recent_failures(
         self,

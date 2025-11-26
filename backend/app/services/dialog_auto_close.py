@@ -1,4 +1,5 @@
 import logging
+import asyncio
 from typing import List, Optional, Dict
 from datetime import datetime, timedelta
 from sqlalchemy import select, and_, update
@@ -6,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.database import ChatSession, DialogStatus, Message, MessageType, ScenarioType
 from app.services.response_manager import ResponseManager
 from app.services.webhook_sender import WebhookSender
+from app.config import get_settings
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -97,7 +99,7 @@ class DialogAutoCloseService:
         return result.scalars().all()
     
     async def send_farewell_message(self, client_id: str) -> Optional[Dict]:
-        """Send farewell message to client"""
+        """Send farewell message to client with delay"""
         try:
             session = await self.get_or_create_session(client_id)
             
@@ -118,6 +120,13 @@ class DialogAutoCloseService:
             if not last_message:
                 logger.warning(f"No messages found for client {client_id}")
                 return None
+            
+            # Add delay before sending farewell (simulate natural conversation pause)
+            settings = get_settings()
+            if settings.delays_enabled and settings.farewell_delay_seconds > 0:
+                delay = settings.farewell_delay_seconds
+                logger.debug(f"⏳ Delaying farewell by {delay:.1f} seconds for client {client_id}")
+                await asyncio.sleep(delay)
             
             # Create farewell response
             response_manager = ResponseManager(self.session)

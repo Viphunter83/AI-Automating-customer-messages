@@ -18,6 +18,7 @@ from app.routes.ws import notify_all_operators
 from app.config import get_settings
 from uuid import uuid4
 import logging
+import asyncio
 from typing import Optional
 from datetime import datetime, timedelta
 
@@ -258,12 +259,36 @@ async def create_message(
                 await session.commit()
                 # Continue to webhook sending after transaction
             
-            # ============ STEP 4: Classify using ИИ ============
-            # AI call is outside transaction (external service)
-            classification_result = await ai_classifier.classify(
-                message=processed_text,
-                client_id=message_data.client_id
+            # ============ STEP 4: Check for mass outage before classification ============
+            # Detect mass outages by analyzing similar messages
+            from app.services.mass_outage_detector import MassOutageDetector
+            mass_outage_detector = MassOutageDetector(session)
+            mass_outage_result = await mass_outage_detector.detect_mass_outage(
+                current_message=processed_text,
+                current_client_id=message_data.client_id
             )
+            
+            # If mass outage detected, override scenario to MASS_OUTAGE
+            if mass_outage_result.get("is_mass_outage"):
+                logger.warning(
+                    f"🚨 Mass outage detected! Overriding classification to MASS_OUTAGE. "
+                    f"Similar messages: {mass_outage_result.get('similar_messages_count')}"
+                )
+                # Skip AI classification and use MASS_OUTAGE directly
+                classification_result = {
+                    "success": True,
+                    "scenario": "MASS_OUTAGE",
+                    "confidence": 0.95,  # High confidence for mass outage
+                    "reasoning": f"Mass outage detected: {mass_outage_result.get('similar_messages_count')} similar messages",
+                    "model": "mass_outage_detector"
+                }
+            else:
+                # ============ STEP 4.5: Classify using ИИ ============
+                # AI call is outside transaction (external service)
+                classification_result = await ai_classifier.classify(
+                    message=processed_text,
+                    client_id=message_data.client_id
+                )
             
             if not classification_result.get("success"):
                 logger.error(f"❌ Classification failed: {classification_result.get('error')}")
@@ -367,13 +392,41 @@ async def create_message(
             
             # ============ STEP 7: Create response ============
             response_manager = ResponseManager(session)
-            response_msg, response_text = await response_manager.create_bot_response(
-                scenario=scenario,
-                client_id=message_data.client_id,
-                original_message_id=str(original_message.id),
-                params={"referral_link": f"https://example.com/ref/{message_data.client_id}"},
-                message_type=MessageType.BOT_ESCALATED if requires_escalation else MessageType.BOT_AUTO
-            )
+            
+            # For escalated scenarios, send "escalated" message to client
+            # Scenario-specific response is saved for operator context
+            if requires_escalation:
+                # Send escalation notification to client
+                response_msg, response_text = await response_manager.create_bot_response(
+                    scenario="ESCALATED",
+                    client_id=message_data.client_id,
+                    original_message_id=str(original_message.id),
+                    params={},
+                    message_type=MessageType.BOT_ESCALATED
+                )
+                
+                # Also create scenario-specific response for operator context (not sent to client)
+                scenario_msg, _ = await response_manager.create_bot_response(
+                    scenario=scenario,
+                    client_id=message_data.client_id,
+                    original_message_id=str(original_message.id),
+                    params={"referral_link": f"https://example.com/ref/{message_data.client_id}"},
+                    message_type=MessageType.BOT_ESCALATED
+                )
+                
+                if scenario_msg:
+                    logger.debug(f"Created scenario response for operator context: {scenario_msg.id}")
+                
+                logger.info(f"📤 Sent escalation notification to client {message_data.client_id}")
+            else:
+                # Normal auto response
+                response_msg, response_text = await response_manager.create_bot_response(
+                    scenario=scenario,
+                    client_id=message_data.client_id,
+                    original_message_id=str(original_message.id),
+                    params={"referral_link": f"https://example.com/ref/{message_data.client_id}"},
+                    message_type=MessageType.BOT_AUTO
+                )
             
             if not response_msg:
                 logger.error(f"❌ Failed to create response: {response_text}")
@@ -464,8 +517,19 @@ async def create_message(
         
         # ============ AFTER TRANSACTION: Send webhook ============
         # Webhook is sent AFTER transaction commit to ensure data consistency
+        # Add delay before sending to simulate "typing..." for better UX
         if webhook_data:
             try:
+                # Add delay before sending response (simulate "typing...")
+                if settings.delays_enabled and settings.response_delay_seconds > 0:
+                    delay = settings.response_delay_seconds
+                    # Add some randomness (±1 second) for more natural feel
+                    import random
+                    delay += random.uniform(-1.0, 1.0)
+                    delay = max(1.0, delay)  # Minimum 1 second
+                    logger.debug(f"⏳ Delaying response by {delay:.1f} seconds for better UX")
+                    await asyncio.sleep(delay)
+                
                 webhook_sender_instance = WebhookSender(platform_webhook_url=x_webhook_url) if x_webhook_url else webhook_sender
                 webhook_result = await webhook_sender_instance.send_response(
                     client_id=webhook_data["client_id"],

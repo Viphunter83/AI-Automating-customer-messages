@@ -40,6 +40,11 @@ class Settings(BaseSettings):
     rate_limit_per_hour: int = 1000  # Requests per hour per IP
     rate_limit_message_per_minute: int = 10  # Messages per minute per client_id
     
+    # Message Delivery Delays (for better UX - simulate "typing...")
+    response_delay_seconds: float = 3.0  # Delay before sending bot response (2-5 seconds)
+    farewell_delay_seconds: float = 10.0  # Delay before sending farewell message
+    delays_enabled: bool = True  # Enable/disable delays
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,
