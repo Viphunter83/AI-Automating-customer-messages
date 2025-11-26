@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from sqlalchemy import text
 from app.config import get_settings
-from app.database import get_engine
+from app.database import engine
 
 router = APIRouter(tags=["health"])
 
@@ -19,7 +19,6 @@ async def health_check():
 async def health_check_db():
     """Database health check"""
     try:
-        engine = get_engine()
         async with engine.connect() as conn:
             await conn.execute(text("SELECT 1"))
         return {"status": "healthy", "database": "ok"}
