@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useFeedback } from '@/hooks/useMessages'
-import { Classification, FeedbackType } from '@/lib/types'
+import { Classification, FeedbackType, ScenarioType } from '@/lib/types'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 
@@ -19,21 +19,24 @@ export function MessageFeedback({
 }: MessageFeedbackProps) {
   const [submitted, setSubmitted] = useState(false)
   const [selectedFeedback, setSelectedFeedback] = useState<FeedbackType | null>(null)
+  const [selectedScenario, setSelectedScenario] = useState<ScenarioType | null>(null)
   const [comment, setComment] = useState('')
   
   const feedback = useFeedback()
   
-  const handleSubmit = async (feedbackType: FeedbackType) => {
+  const handleSubmit = async (feedbackType: FeedbackType, suggestedScenario?: ScenarioType) => {
     try {
       await feedback.mutateAsync({
         message_id: messageId,
         classification_id: classification.id,
         feedback_type: feedbackType,
+        suggested_scenario: suggestedScenario,
         operator_id: operatorId,
         comment: comment || undefined,
       })
       setSubmitted(true)
       setSelectedFeedback(null)
+      setSelectedScenario(null)
       setComment('')
       
       // Reset after 2 seconds
@@ -89,24 +92,24 @@ export function MessageFeedback({
           <div className="flex gap-2">
             <Button
               size="sm"
-              variant="outline"
-              onClick={() => handleSubmit('incorrect')}
+              variant={selectedScenario === 'GREETING' ? 'default' : 'outline'}
+              onClick={() => setSelectedScenario('GREETING')}
               disabled={feedback.isPending}
             >
               GREETING
             </Button>
             <Button
               size="sm"
-              variant="outline"
-              onClick={() => handleSubmit('incorrect')}
+              variant={selectedScenario === 'REFERRAL' ? 'default' : 'outline'}
+              onClick={() => setSelectedScenario('REFERRAL')}
               disabled={feedback.isPending}
             >
               REFERRAL
             </Button>
             <Button
               size="sm"
-              variant="outline"
-              onClick={() => handleSubmit('incorrect')}
+              variant={selectedScenario === 'TECH_SUPPORT_BASIC' ? 'default' : 'outline'}
+              onClick={() => setSelectedScenario('TECH_SUPPORT_BASIC')}
               disabled={feedback.isPending}
             >
               TECH_SUPPORT
@@ -126,8 +129,14 @@ export function MessageFeedback({
           />
           <Button
             size="sm"
-            onClick={() => handleSubmit(selectedFeedback)}
-            disabled={feedback.isPending}
+            onClick={() => {
+              if (selectedFeedback === 'incorrect' && selectedScenario) {
+                handleSubmit(selectedFeedback, selectedScenario)
+              } else {
+                handleSubmit(selectedFeedback)
+              }
+            }}
+            disabled={feedback.isPending || (selectedFeedback === 'incorrect' && !selectedScenario)}
             className="mt-2"
           >
             {feedback.isPending ? 'Submitting...' : 'Submit Feedback'}
