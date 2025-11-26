@@ -130,6 +130,27 @@ async def create_message(
                 reason="response_creation_error"
             )
         
+        # Final check: if still None, return error response
+        if not response_msg:
+            logger.error(f"❌ Fallback response also failed: {response_text}")
+            await session.commit()
+            return {
+                "status": "error",
+                "original_message_id": str(original_message.id),
+                "classification": {
+                    "id": str(classification.id),
+                    "scenario": scenario,
+                    "confidence": confidence,
+                    "reasoning": classification_result.get("reasoning"),
+                },
+                "response": {
+                    "message_id": None,
+                    "text": response_text or "Failed to create response",
+                    "type": "error",
+                },
+                "error": "Failed to create bot response after fallback"
+            }
+        
         logger.info(f"✅ Created response: {response_msg.id if response_msg else 'None'}")
         
         # ============ STEP 6: Mark original as processed ============
@@ -148,7 +169,7 @@ async def create_message(
                 "reasoning": classification_result.get("reasoning"),
             },
             "response": {
-                "message_id": str(response_msg.id),
+                "message_id": str(response_msg.id) if response_msg else None,
                 "text": response_text,
                 "type": response_msg.message_type.value if response_msg else "unknown",
             }
