@@ -4,6 +4,7 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.database import Reminder, ReminderType, Message, MessageType
+from sqlalchemy import select, and_
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -126,7 +127,7 @@ class ReminderService:
         
         Args:
             client_id: Client ID
-            after_message_id: Optional message ID - cancel reminders for messages after this
+            after_message_id: Optional message ID - cancel reminders for messages created after this message
         
         Returns:
             Number of cancelled reminders
@@ -138,7 +139,30 @@ class ReminderService:
         ]
         
         if after_message_id:
-            conditions.append(Reminder.message_id == uuid.UUID(after_message_id))
+            # Get the message to compare creation time
+            from app.models.database import Message
+            message_result = await self.session.execute(
+                select(Message).where(Message.id == uuid.UUID(after_message_id))
+            )
+            message = message_result.scalar_one_or_none()
+            
+            if message:
+                # Cancel reminders for messages created after this message
+                # We need to join with messages table to compare created_at
+                from sqlalchemy import and_
+                conditions.append(
+                    Reminder.message_id.in_(
+                        select(Message.id).where(
+                            and_(
+                                Message.client_id == client_id,
+                                Message.created_at > message.created_at
+                            )
+                        )
+                    )
+                )
+            else:
+                # If message not found, cancel all reminders for this client
+                logger.warning(f"Message {after_message_id} not found, cancelling all reminders for {client_id}")
         
         result = await self.session.execute(
             select(Reminder).where(and_(*conditions))

@@ -257,9 +257,11 @@ async def create_message(
         
         # Cancel any pending reminders if client responded
         # (This handles the case where client responds before reminder is sent)
+        # Cancel reminders for messages created BEFORE this response
+        # (since client responded, we don't need reminders for older messages)
         cancelled = await reminder_service.cancel_client_reminders(
             client_id=message_data.client_id,
-            after_message_id=str(original_message.id)
+            after_message_id=None  # Cancel all pending reminders when client responds
         )
         if cancelled > 0:
             logger.debug(f"Cancelled {cancelled} pending reminders for {message_data.client_id}")
