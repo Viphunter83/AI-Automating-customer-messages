@@ -22,6 +22,13 @@ target_metadata = Base.metadata
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""
     url = config.get_main_option("sqlalchemy.url")
+    
+    # Convert asyncpg URL to psycopg2 for synchronous alembic operations
+    if "+asyncpg" in url:
+        url = url.replace("+asyncpg", "+psycopg2")
+    elif url.startswith("postgresql://") and "+" not in url:
+        url = url.replace("postgresql://", "postgresql+psycopg2://")
+    
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -35,10 +42,23 @@ def run_migrations_offline() -> None:
 def run_migrations_online() -> None:
     """Run migrations in 'online' mode."""
     configuration = config.get_section(config.config_ini_section)
-    configuration["sqlalchemy.url"] = os.getenv(
+    
+    # Get database URL and convert asyncpg to psycopg2 for synchronous migrations
+    db_url = os.getenv(
         "DATABASE_URL",
         "postgresql+asyncpg://support_user:support_pass@localhost:5432/ai_support"
     )
+    
+    # Convert asyncpg URL to psycopg2 for synchronous alembic operations
+    if "+asyncpg" in db_url:
+        db_url = db_url.replace("+asyncpg", "+psycopg2")
+    elif db_url.startswith("postgresql://") and "+" not in db_url:
+        # Add psycopg2 driver if not specified
+        db_url = db_url.replace("postgresql://", "postgresql+psycopg2://")
+    elif db_url.startswith("postgresql+psycopg2://"):
+        pass  # Already psycopg2
+    
+    configuration["sqlalchemy.url"] = db_url
     
     connectable = engine_from_config(
         configuration,

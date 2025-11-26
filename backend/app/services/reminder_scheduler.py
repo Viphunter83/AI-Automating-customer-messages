@@ -97,10 +97,23 @@ class ReminderScheduler:
                 )
                 
             except Exception as e:
+                error_type = type(e).__name__
+                error_msg = str(e)
                 logger.error(
-                    f"Error sending reminder {reminder_id}: {type(e).__name__}: {str(e)}",
+                    f"❌ Error sending reminder {reminder_id} to client {client_id}: "
+                    f"{error_type}: {error_msg}",
                     exc_info=True
                 )
+                
+                # Try to mark reminder as failed (optional: could add failed_at field)
+                try:
+                    async with async_session_maker() as error_session:
+                        reminder_service = ReminderService(error_session)
+                        # Note: In future, we could add a failed_attempts counter
+                        # For now, we just log the error
+                        await error_session.commit()
+                except Exception as cleanup_error:
+                    logger.error(f"Failed to cleanup after reminder error: {cleanup_error}")
     
     async def process_pending_reminders(self):
         """Process all pending reminders"""
@@ -123,10 +136,14 @@ class ReminderScheduler:
                     )
                 
             except Exception as e:
+                error_type = type(e).__name__
+                error_msg = str(e)
                 logger.error(
-                    f"Error processing pending reminders: {type(e).__name__}: {str(e)}",
+                    f"❌ Error processing pending reminders: {error_type}: {error_msg}",
                     exc_info=True
                 )
+                # Don't re-raise - continue processing other reminders
+                # This ensures one failed reminder doesn't stop all processing
     
     async def process_inactive_dialogs(self):
         """Job to process inactive dialogs: send farewell and close"""
@@ -143,10 +160,14 @@ class ReminderScheduler:
                         f"{stats['sessions_closed']} sessions closed"
                     )
             except Exception as e:
+                error_type = type(e).__name__
+                error_msg = str(e)
                 logger.error(
-                    f"Error processing inactive dialogs: {type(e).__name__}: {str(e)}",
+                    f"❌ Error processing inactive dialogs: {error_type}: {error_msg}",
                     exc_info=True
                 )
+                # Don't re-raise - continue processing other dialogs
+                # This ensures one failed dialog doesn't stop all processing
     
     def start(self):
         """Start the reminder scheduler"""

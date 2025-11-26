@@ -27,15 +27,15 @@ services:
       - ./backend/.env
     environment:
       DATABASE_URL: postgresql+asyncpg://support_user:support_pass@postgres:5432/ai_support
-      SUPABASE_URL: ${SUPABASE_URL:-}
-      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY:-}
-      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
-      OPENAI_API_BASE: ${OPENAI_API_BASE:-https://api.proxyapi.ru/openai/v1}
-      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
-      DEBUG: ${DEBUG:-True}
-      LOG_LEVEL: ${LOG_LEVEL:-INFO}
-      SECRET_KEY: ${SECRET_KEY:-dev-secret-key-change-in-production}
-      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8000}
+      SUPABASE_URL: ${SUPABASE_URL}
+      SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_API_BASE: ${OPENAI_API_BASE}
+      OPENAI_MODEL: ${OPENAI_MODEL}
+      DEBUG: ${DEBUG}
+      LOG_LEVEL: ${LOG_LEVEL}
+      SECRET_KEY: ${SECRET_KEY}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
     depends_on:
       postgres:
         condition: service_healthy

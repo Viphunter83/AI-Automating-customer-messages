@@ -3,6 +3,7 @@
 import { useEffect, useRef } from 'react'
 import { Message, MessageWithClassification } from '@/lib/types'
 import { Badge } from '@/components/ui/badge'
+import { PriorityBadge } from '@/components/PriorityBadge'
 import clsx from 'clsx'
 
 interface ChatHistoryProps {
@@ -68,9 +69,12 @@ export function ChatHistory({ messages, isLoading, clientId }: ChatHistoryProps)
           )}
         >
           <div className="flex items-center justify-between gap-2 mb-1">
-            <Badge variant="secondary" className="text-xs">
-              {getMessageLabel(msg.message_type)}
-            </Badge>
+            <div className="flex items-center gap-2">
+              <Badge variant="secondary" className="text-xs">
+                {getMessageLabel(msg.message_type)}
+              </Badge>
+              {msg.priority && <PriorityBadge priority={msg.priority} size="sm" />}
+            </div>
             <span className="text-xs text-gray-500">
               {new Date(msg.created_at).toLocaleTimeString()}
             </span>

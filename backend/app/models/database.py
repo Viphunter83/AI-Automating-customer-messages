@@ -27,6 +27,20 @@ class MessageType(str, Enum):
     BOT_ESCALATED = "bot_escalated"
     OPERATOR = "operator"
 
+class PriorityLevel(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+class EscalationReason(str, Enum):
+    LOW_CONFIDENCE = "low_confidence"
+    REPEATED_FAILED = "repeated_failed"
+    COMPLAINT = "complaint"
+    UNKNOWN_SCENARIO = "unknown_scenario"
+    OPERATOR_MARKED = "operator_marked"
+    SYSTEM_ERROR = "system_error"
+
 class Message(Base):
     __tablename__ = "messages"
     
@@ -35,6 +49,9 @@ class Message(Base):
     content = Column(Text, nullable=False)
     message_type = Column(SQLEnum(MessageType), default=MessageType.USER, nullable=False)
     is_processed = Column(Boolean, default=False)
+    is_first_message = Column(Boolean, default=False, nullable=False)
+    priority = Column(SQLEnum(PriorityLevel, native_enum=False, values_callable=lambda x: [e.value for e in PriorityLevel]), default=PriorityLevel.LOW.value, nullable=False, index=True)
+    escalation_reason = Column(SQLEnum(EscalationReason), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     
     # Relationships

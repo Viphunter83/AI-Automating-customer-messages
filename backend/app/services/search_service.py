@@ -1,6 +1,7 @@
 import logging
 from typing import List, Dict, Optional
 from sqlalchemy import select, or_, and_, func, desc
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.database import Message, Classification, OperatorFeedback, ScenarioType
 from datetime import datetime, timedelta
@@ -135,27 +136,49 @@ class SearchService:
         rows = result.all()
         dialogs = []
         
+        # Collect all client_ids
+        client_ids = [row.client_id for row in rows]
+        
+        if not client_ids:
+            return dialogs
+        
+        # Batch load all classifications for all clients (prevent N+1)
+        # Use JOIN to get client_id directly without separate queries
+        class_result = await self.session.execute(
+            select(Classification, Message.client_id)
+            .join(Message, Classification.message_id == Message.id)
+            .where(Message.client_id.in_(client_ids))
+        )
+        all_classifications_data = class_result.all()
+        classifications_by_client = {}
+        for c, client_id in all_classifications_data:
+            if client_id not in classifications_by_client:
+                classifications_by_client[client_id] = []
+            classifications_by_client[client_id].append(c)
+        
+        # Batch load all feedbacks for all clients (prevent N+1)
+        # Use JOIN to get client_id directly without separate queries
+        feedback_result = await self.session.execute(
+            select(OperatorFeedback, Message.client_id)
+            .join(Message, OperatorFeedback.message_id == Message.id)
+            .where(Message.client_id.in_(client_ids))
+        )
+        all_feedbacks_data = feedback_result.all()
+        feedbacks_by_client = {}
+        for f, client_id in all_feedbacks_data:
+            if client_id not in feedbacks_by_client:
+                feedbacks_by_client[client_id] = []
+            feedbacks_by_client[client_id].append(f)
+        
         for row in rows:
             client_id = row.client_id
             msg_count = row.message_count
             first_msg = row.first_message
             last_msg = row.last_message
             
-            # Get classifications
-            class_result = await self.session.execute(
-                select(Classification)
-                .join(Message)
-                .where(Message.client_id == client_id)
-            )
-            classifications = class_result.scalars().all()
-            
-            # Get feedback
-            feedback_result = await self.session.execute(
-                select(OperatorFeedback)
-                .join(Message)
-                .where(Message.client_id == client_id)
-            )
-            feedbacks = feedback_result.scalars().all()
+            # Get pre-loaded classifications and feedbacks
+            classifications = classifications_by_client.get(client_id, [])
+            feedbacks = feedbacks_by_client.get(client_id, [])
             
             # Filter by feedback if requested
             if has_feedback is not None:

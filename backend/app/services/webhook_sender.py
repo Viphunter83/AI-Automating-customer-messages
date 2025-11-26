@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, Optional
 import httpx
+from httpx import HTTPStatusError, NetworkError
 from tenacity import retry, stop_after_attempt, wait_exponential
 from app.config import get_settings
 
@@ -23,7 +24,8 @@ class WebhookSender:
     
     @retry(
         stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10)
+        wait=wait_exponential(multiplier=1, min=2, max=10),
+        reraise=True  # Re-raise exception after retries exhausted
     )
     async def send_response(
         self,
@@ -64,6 +66,7 @@ class WebhookSender:
                     timeout=self.timeout,
                 )
             
+            # Handle different status codes
             if response.status_code in [200, 201]:
                 result = response.json() if response.headers.get("content-type", "").startswith("application/json") else {}
                 logger.info(
@@ -74,31 +77,63 @@ class WebhookSender:
                     "success": True,
                     "platform_message_id": result.get("message_id"),
                     "error": None,
+                    "status_code": response.status_code,
                 }
+            elif response.status_code in [429, 502, 503, 504]:
+                # Retryable errors - these will trigger retry decorator
+                error_msg = f"Platform returned {response.status_code} (retryable)"
+                logger.warning(
+                    f"⚠️ Retryable error for client {client_id}: {error_msg}, "
+                    f"response: {response.text[:200]}"
+                )
+                # Re-raise to trigger retry
+                raise httpx.HTTPStatusError(
+                    f"Retryable error: {response.status_code}",
+                    request=response.request,
+                    response=response
+                )
             else:
+                # Non-retryable errors (4xx except 429)
+                error_msg = f"Platform returned {response.status_code}"
                 logger.error(
-                    f"❌ Platform responded with {response.status_code}: "
-                    f"{response.text[:200]}"
+                    f"❌ Non-retryable error for client {client_id}: {error_msg}, "
+                    f"response: {response.text[:200]}"
                 )
                 return {
                     "success": False,
                     "platform_message_id": None,
-                    "error": f"Platform returned {response.status_code}",
+                    "error": error_msg,
+                    "status_code": response.status_code,
+                    "retryable": False,
                 }
         
-        except httpx.TimeoutException:
-            logger.error(f"❌ Webhook timeout for client {client_id}")
-            return {
-                "success": False,
-                "platform_message_id": None,
-                "error": "Webhook timeout",
-            }
+        except httpx.TimeoutException as e:
+            logger.warning(f"⚠️ Webhook timeout for client {client_id} (will retry)")
+            # Re-raise to trigger retry
+            raise
+        
+        except HTTPStatusError as e:
+            # This is raised for retryable status codes
+            logger.warning(f"⚠️ HTTP error for client {client_id}: {e.response.status_code} (will retry)")
+            raise
+        
+        except NetworkError as e:
+            # Network errors are retryable
+            logger.warning(f"⚠️ Network error for client {client_id}: {str(e)} (will retry)")
+            raise
         
         except Exception as e:
-            logger.error(f"❌ Webhook error: {type(e).__name__}: {str(e)}")
+            # Unexpected errors - log and return error response
+            logger.error(
+                f"❌ Unexpected webhook error for client {client_id}: "
+                f"{type(e).__name__}: {str(e)}",
+                exc_info=True
+            )
+            # Don't retry unexpected errors
             return {
                 "success": False,
                 "platform_message_id": None,
-                "error": str(e),
+                "error": f"Unexpected error: {str(e)}",
+                "retryable": False,
             }
 

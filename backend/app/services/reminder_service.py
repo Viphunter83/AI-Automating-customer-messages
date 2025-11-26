@@ -4,7 +4,6 @@ from datetime import datetime, timedelta
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.database import Reminder, ReminderType, Message, MessageType
-from sqlalchemy import select, and_
 import uuid
 
 logger = logging.getLogger(__name__)
@@ -67,7 +66,8 @@ class ReminderService:
     
     async def get_pending_reminders(self, limit: int = 100) -> List[Reminder]:
         """
-        Get reminders that are due to be sent
+        Get reminders that are due to be sent.
+        Uses SELECT FOR UPDATE to prevent multiple schedulers from processing the same reminders.
         
         Args:
             limit: Maximum number of reminders to return
@@ -77,6 +77,8 @@ class ReminderService:
         """
         now = datetime.utcnow()
         
+        # Use SELECT FOR UPDATE SKIP LOCKED to allow multiple scheduler instances
+        # to work in parallel without conflicts
         result = await self.session.execute(
             select(Reminder).where(
                 and_(
@@ -84,7 +86,10 @@ class ReminderService:
                     Reminder.sent_at.is_(None),
                     Reminder.is_cancelled == False
                 )
-            ).order_by(Reminder.scheduled_at.asc()).limit(limit)
+            )
+            .order_by(Reminder.scheduled_at.asc())
+            .limit(limit)
+            .with_for_update(skip_locked=True)
         )
         
         reminders = result.scalars().all()
@@ -124,6 +129,7 @@ class ReminderService:
     ) -> int:
         """
         Cancel pending reminders for a client (e.g., when they respond)
+        Uses SELECT FOR UPDATE to prevent race conditions.
         
         Args:
             client_id: Client ID
@@ -142,14 +148,15 @@ class ReminderService:
             # Get the message to compare creation time
             from app.models.database import Message
             message_result = await self.session.execute(
-                select(Message).where(Message.id == uuid.UUID(after_message_id))
+                select(Message)
+                .where(Message.id == uuid.UUID(after_message_id))
+                .with_for_update(skip_locked=True)
             )
             message = message_result.scalar_one_or_none()
             
             if message:
                 # Cancel reminders for messages created after this message
                 # We need to join with messages table to compare created_at
-                from sqlalchemy import and_
                 conditions.append(
                     Reminder.message_id.in_(
                         select(Message.id).where(
@@ -164,15 +171,24 @@ class ReminderService:
                 # If message not found, cancel all reminders for this client
                 logger.warning(f"Message {after_message_id} not found, cancelling all reminders for {client_id}")
         
+        if not conditions:
+            logger.debug(f"No conditions to cancel reminders for {client_id}")
+            return 0
+        
+        # Use SELECT FOR UPDATE to prevent race conditions when cancelling reminders
         result = await self.session.execute(
-            select(Reminder).where(and_(*conditions))
+            select(Reminder)
+            .where(and_(*conditions))
+            .with_for_update(skip_locked=True)
         )
         reminders = result.scalars().all()
         
         cancelled_count = 0
         for reminder in reminders:
-            reminder.is_cancelled = True
-            cancelled_count += 1
+            # Double-check that reminder wasn't already cancelled or sent
+            if not reminder.is_cancelled and reminder.sent_at is None:
+                reminder.is_cancelled = True
+                cancelled_count += 1
         
         await self.session.flush()
         

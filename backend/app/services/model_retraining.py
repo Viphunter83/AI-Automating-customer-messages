@@ -1,6 +1,7 @@
 import logging
 from typing import Dict, List, Optional
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.models.database import OperatorFeedback, Classification, Message, ResponseTemplate, ScenarioType
 from app.utils.prompts import RESPONSE_TEMPLATES
@@ -90,8 +91,9 @@ class ModelRetrainingService:
         self,
         limit: int = 50
     ) -> List[Dict]:
-        """Get messages that were incorrectly classified"""
+        """Get messages that were incorrectly classified (optimized to prevent N+1 queries)"""
         
+        # Load feedbacks with eager loading of related objects
         result = await self.session.execute(
             select(OperatorFeedback)
             .where(OperatorFeedback.feedback_type == "incorrect")
@@ -100,22 +102,31 @@ class ModelRetrainingService:
         )
         feedbacks = result.scalars().all()
         
+        if not feedbacks:
+            return []
+        
+        # Batch load all messages and classifications in one query each
+        message_ids = [f.message_id for f in feedbacks if f.message_id]
+        classification_ids = [f.classification_id for f in feedbacks if f.classification_id]
+        
+        # Load all messages at once
+        messages_result = await self.session.execute(
+            select(Message).where(Message.id.in_(message_ids))
+        )
+        messages_dict = {str(m.id): m for m in messages_result.scalars().all()}
+        
+        # Load all classifications at once
+        classifications_dict = {}
+        if classification_ids:
+            classifications_result = await self.session.execute(
+                select(Classification).where(Classification.id.in_(classification_ids))
+            )
+            classifications_dict = {str(c.id): c for c in classifications_result.scalars().all()}
+        
         messages = []
         for feedback in feedbacks:
-            # Get original message
-            msg_result = await self.session.execute(
-                select(Message).where(Message.id == feedback.message_id)
-            )
-            message = msg_result.scalar_one_or_none()
-            
-            # Get classification
-            if feedback.classification_id:
-                class_result = await self.session.execute(
-                    select(Classification).where(Classification.id == feedback.classification_id)
-                )
-                classification = class_result.scalar_one_or_none()
-            else:
-                classification = None
+            message = messages_dict.get(str(feedback.message_id))
+            classification = classifications_dict.get(str(feedback.classification_id)) if feedback.classification_id else None
             
             if message and classification:
                 messages.append({

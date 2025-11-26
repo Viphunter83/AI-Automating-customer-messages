@@ -1,9 +1,12 @@
 from pydantic_settings import BaseSettings, SettingsConfigDict
-from pydantic import field_validator
+from pydantic import field_validator, ValidationError
 from typing import List, Union
 from functools import lru_cache
 import json
 import os
+import logging
+
+logger = logging.getLogger(__name__)
 
 class Settings(BaseSettings):
     # App
@@ -31,6 +34,12 @@ class Settings(BaseSettings):
     secret_key: str
     allowed_origins: Union[str, List[str]] = "http://localhost:3000,http://localhost:8000"
     
+    # Rate Limiting
+    rate_limit_enabled: bool = True
+    rate_limit_per_minute: int = 60  # Requests per minute per IP
+    rate_limit_per_hour: int = 1000  # Requests per hour per IP
+    rate_limit_message_per_minute: int = 10  # Messages per minute per client_id
+    
     model_config = SettingsConfigDict(
         env_file=".env",
         case_sensitive=False,
@@ -51,8 +60,50 @@ class Settings(BaseSettings):
             # Fallback to comma-separated
             return [origin.strip() for origin in v.split(',') if origin.strip()]
         return ["http://localhost:3000", "http://localhost:8000"]
+    
+    def validate_required_secrets(self) -> None:
+        """
+        Validate that all required secrets are set and not using default/placeholder values.
+        Raises ValueError if any required secret is missing or invalid.
+        """
+        errors = []
+        
+        # Check database URL
+        if not self.database_url or self.database_url.startswith("postgresql+asyncpg://"):
+            if "localhost" not in self.database_url and "postgres" not in self.database_url:
+                # Only validate if it's not a local development setup
+                pass
+        
+        # Check OpenAI API key
+        if not self.openai_api_key or self.openai_api_key.startswith("sk-xxxxx") or len(self.openai_api_key) < 10:
+            errors.append("OPENAI_API_KEY is required and must be a valid API key")
+        
+        # Check secret key
+        if not self.secret_key or self.secret_key in [
+            "dev-secret-key-change-in-production",
+            "your-secret-key-here-change-in-production",
+            "change-in-production"
+        ] or len(self.secret_key) < 32:
+            errors.append("SECRET_KEY is required and must be at least 32 characters long")
+        
+        if errors:
+            error_msg = "Configuration validation failed:\n" + "\n".join(f"  - {e}" for e in errors)
+            logger.error(error_msg)
+            raise ValueError(error_msg)
+        
+        logger.info("✅ Configuration validation passed")
 
 @lru_cache()
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    # Validate secrets on first load
+    try:
+        settings.validate_required_secrets()
+    except ValueError as e:
+        # In production, fail fast
+        if not settings.debug:
+            raise
+        # In development, log warning but continue
+        logger.warning(f"⚠️ Configuration warning: {e}")
+    return settings
 

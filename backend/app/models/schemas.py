@@ -1,7 +1,9 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional, List
 from datetime import datetime
 from enum import Enum
+import re
+import html
 
 class ScenarioType(str, Enum):
     GREETING = "GREETING"
@@ -27,15 +29,100 @@ class MessageTypeEnum(str, Enum):
 # ========== MESSAGE SCHEMAS ==========
 
 class MessageCreate(BaseModel):
-    client_id: str = Field(..., min_length=1, description="Unique client ID from chat platform")
-    content: str = Field(..., min_length=1, max_length=5000, description="Message content")
+    client_id: str = Field(
+        ...,
+        min_length=1,
+        max_length=255,
+        description="Unique client ID from chat platform",
+        pattern=r'^[a-zA-Z0-9_\-\.]+$'  # Only alphanumeric, underscore, dash, dot
+    )
+    content: str = Field(
+        ...,
+        min_length=1,
+        max_length=5000,
+        description="Message content"
+    )
     timestamp: Optional[datetime] = Field(default_factory=datetime.utcnow)
+    
+    @field_validator('client_id')
+    @classmethod
+    def validate_client_id(cls, v: str) -> str:
+        """Validate and sanitize client_id"""
+        if not v or not v.strip():
+            raise ValueError("client_id cannot be empty")
+        
+        # Remove any whitespace
+        v = v.strip()
+        
+        # Check for suspicious patterns
+        if re.search(r'[<>"\']', v):
+            raise ValueError("client_id contains invalid characters")
+        
+        # Check length
+        if len(v) > 255:
+            raise ValueError("client_id exceeds maximum length of 255 characters")
+        
+        return v
+    
+    @field_validator('content')
+    @classmethod
+    def validate_content(cls, v: str) -> str:
+        """Validate and sanitize message content"""
+        if not v or not v.strip():
+            raise ValueError("content cannot be empty")
+        
+        # Check for suspicious SQL patterns (basic check, main validation in middleware)
+        dangerous_patterns = [
+            r'(?i)(union\s+(all\s+)?select)',
+            r'(?i)(;\s*(drop|delete|insert|update|exec))',
+            r'(?i)(--\s*$)',
+        ]
+        
+        for pattern in dangerous_patterns:
+            if re.search(pattern, v):
+                raise ValueError("content contains potentially dangerous patterns")
+        
+        # Escape HTML to prevent XSS (content will be stored as-is, but displayed safely)
+        # Note: We don't fully escape here as content might contain legitimate formatting
+        # The frontend should handle XSS prevention
+        
+        # Check for extremely long content (prevent DoS)
+        if len(v) > 5000:
+            raise ValueError("content exceeds maximum length of 5000 characters")
+        
+        return v.strip()
+    
+    @model_validator(mode='after')
+    def validate_model(self):
+        """Additional model-level validation"""
+        # Ensure content is not just whitespace after validation
+        if not self.content or not self.content.strip():
+            raise ValueError("content cannot be empty or only whitespace")
+        
+        return self
+
+class PriorityLevelEnum(str, Enum):
+    LOW = "low"
+    MEDIUM = "medium"
+    HIGH = "high"
+    CRITICAL = "critical"
+
+class EscalationReasonEnum(str, Enum):
+    LOW_CONFIDENCE = "low_confidence"
+    REPEATED_FAILED = "repeated_failed"
+    COMPLAINT = "complaint"
+    UNKNOWN_SCENARIO = "unknown_scenario"
+    OPERATOR_MARKED = "operator_marked"
+    SYSTEM_ERROR = "system_error"
 
 class MessageResponse(BaseModel):
     id: str
     client_id: str
     content: str
     message_type: MessageTypeEnum
+    priority: PriorityLevelEnum = PriorityLevelEnum.LOW
+    escalation_reason: Optional[EscalationReasonEnum] = None
+    is_first_message: bool = False
     created_at: datetime
     
     class Config:

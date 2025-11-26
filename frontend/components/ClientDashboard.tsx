@@ -5,10 +5,12 @@ import { useChatSession, useDialog, useCloseDialog, useReopenDialog } from '@/ho
 import { ChatHistory } from '@/components/ChatHistory'
 import { MessageFeedback } from '@/components/MessageFeedback'
 import { DialogStatusBadge } from '@/components/DialogStatusBadge'
+import { PriorityBadge } from '@/components/PriorityBadge'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatDistanceToNow } from 'date-fns'
 import { ru } from 'date-fns/locale'
+import { useMemo } from 'react'
 
 interface ClientDashboardProps {
   clientId: string
@@ -21,8 +23,31 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
   const closeDialog = useCloseDialog()
   const reopenDialog = useReopenDialog()
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
+  const [sortByPriority, setSortByPriority] = useState(true)
   
-  const selectedMessage = messages.find(m => m.id === selectedMessageId)
+  // Sort messages by priority (critical > high > medium > low)
+  const sortedMessages = useMemo(() => {
+    const priorityOrder: Record<string, number> = {
+      critical: 4,
+      high: 3,
+      medium: 2,
+      low: 1
+    }
+    
+    if (!sortByPriority) {
+      return [...messages].sort((a, b) => 
+        new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+      )
+    }
+    
+    return [...messages].sort((a, b) => {
+      const priorityDiff = (priorityOrder[b.priority] || 0) - (priorityOrder[a.priority] || 0)
+      if (priorityDiff !== 0) return priorityDiff
+      return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+    })
+  }, [messages, sortByPriority])
+  
+  const selectedMessage = sortedMessages.find(m => m.id === selectedMessageId)
   
   const handleCloseDialog = () => {
     if (dialog?.status === 'open') {
@@ -93,7 +118,7 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
         </div>
         
         <ChatHistory
-          messages={messages}
+          messages={sortedMessages}
           isLoading={isLoading}
           clientId={clientId}
         />
@@ -103,15 +128,25 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
       <div className="w-96 flex flex-col gap-4">
         {selectedMessage && selectedMessage.classification ? (
           <>
-            <div className="p-4 bg-white border border-gray-200 rounded-lg">
-              <h4 className="font-semibold mb-2">Message Details</h4>
-              <div className="space-y-2 text-sm">
-                <p><strong>Type:</strong> {selectedMessage.message_type}</p>
-                <p><strong>Scenario:</strong> {selectedMessage.classification.detected_scenario}</p>
-                <p><strong>Confidence:</strong> {(selectedMessage.classification.confidence * 100).toFixed(0)}%</p>
-                <p className="text-gray-600"><strong>Reasoning:</strong> {selectedMessage.classification.reasoning}</p>
-              </div>
-            </div>
+                 <div className="p-4 bg-white border border-gray-200 rounded-lg">
+                   <h4 className="font-semibold mb-2">Message Details</h4>
+                   <div className="space-y-2 text-sm">
+                     <div className="flex items-center gap-2">
+                       <strong>Priority:</strong>
+                       <PriorityBadge priority={selectedMessage.priority} size="sm" />
+                     </div>
+                     {selectedMessage.escalation_reason && (
+                       <p><strong>Escalation Reason:</strong> {selectedMessage.escalation_reason}</p>
+                     )}
+                     <p><strong>Type:</strong> {selectedMessage.message_type}</p>
+                     <p><strong>Scenario:</strong> {selectedMessage.classification.detected_scenario}</p>
+                     <p><strong>Confidence:</strong> {(selectedMessage.classification.confidence * 100).toFixed(0)}%</p>
+                     <p className="text-gray-600"><strong>Reasoning:</strong> {selectedMessage.classification.reasoning}</p>
+                     {selectedMessage.is_first_message && (
+                       <Badge variant="outline" className="text-xs">First Message</Badge>
+                     )}
+                   </div>
+                 </div>
             
             <MessageFeedback
               messageId={selectedMessage.id}
@@ -127,8 +162,16 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
         
         {/* Message List for Selection */}
         <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg p-3 space-y-2 bg-white">
-          <p className="text-xs font-semibold text-gray-600 px-1">Messages with Classifications</p>
-          {messages
+          <div className="flex items-center justify-between mb-2 px-1">
+            <p className="text-xs font-semibold text-gray-600">Messages with Classifications</p>
+            <button
+              onClick={() => setSortByPriority(!sortByPriority)}
+              className="text-xs text-blue-600 hover:text-blue-800 underline"
+            >
+              {sortByPriority ? 'Sort by Time' : 'Sort by Priority'}
+            </button>
+          </div>
+          {sortedMessages
             .filter(m => m.classification)
             .map(msg => (
               <button
@@ -140,11 +183,14 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
                     : 'bg-gray-50 hover:bg-gray-100 border border-gray-200'
                 }`}
               >
-                <div className="flex items-center justify-between">
-                  <span className="font-medium truncate">{msg.content.substring(0, 30)}...</span>
-                  <Badge variant="outline" className="text-xs">
-                    {msg.classification?.detected_scenario}
-                  </Badge>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-medium truncate flex-1">{msg.content.substring(0, 30)}...</span>
+                  <div className="flex items-center gap-1">
+                    <PriorityBadge priority={msg.priority} size="sm" />
+                    <Badge variant="outline" className="text-xs">
+                      {msg.classification?.detected_scenario}
+                    </Badge>
+                  </div>
                 </div>
               </button>
             ))}
