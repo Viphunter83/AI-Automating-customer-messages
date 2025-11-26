@@ -257,7 +257,39 @@ async def create_message(
                 
                 # Commit transaction before early return
                 await session.commit()
-                # Continue to webhook sending after transaction
+                
+                # Send webhook if needed
+                if webhook_data:
+                    try:
+                        webhook_sender_instance = WebhookSender(platform_webhook_url=x_webhook_url) if x_webhook_url else webhook_sender
+                        webhook_result = await webhook_sender_instance.send_response(
+                            client_id=webhook_data["client_id"],
+                            response_text=webhook_data["response_text"],
+                            message_id=webhook_data["message_id"],
+                            classification=webhook_data.get("classification"),
+                        )
+                        logger.info(f"📤 Webhook send result: {webhook_result}")
+                    except Exception as webhook_error:
+                        logger.error(f"❌ Webhook send failed (non-critical): {str(webhook_error)}")
+                
+                # Return early - no further processing needed for empty text
+                return {
+                    "status": "success",
+                    "original_message_id": str(original_message.id),
+                    "is_first_message": is_first_message,
+                    "priority": "low",
+                    "escalation_reason": None,
+                    "classification": None,
+                    "response": {
+                        "message_id": str(response_msg.id) if response_msg else None,
+                        "text": response_text,
+                        "type": response_msg.message_type.value if response_msg else "unknown",
+                    },
+                    "webhook": {
+                        "success": webhook_result.get("success", False) if webhook_data else None,
+                        "error": webhook_result.get("error") if webhook_data else None,
+                    } if webhook_data else None,
+                }
             
             # ============ STEP 4: Check for mass outage before classification ============
             # Detect mass outages by analyzing similar messages

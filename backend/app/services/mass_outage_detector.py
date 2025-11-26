@@ -3,7 +3,7 @@ from typing import List, Dict, Optional
 from datetime import datetime, timedelta
 from sqlalchemy import select, func, and_
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.database import Message, Classification, ScenarioType
+from app.models.database import Message, Classification, ScenarioType, MessageType
 from difflib import SequenceMatcher
 
 logger = logging.getLogger(__name__)
@@ -49,7 +49,7 @@ class MassOutageDetector:
             .where(
                 and_(
                     Message.created_at >= cutoff_time,
-                    Message.message_type == "user",
+                    Message.message_type == MessageType.USER,  # Use enum instead of string
                     Message.client_id != current_client_id  # Exclude current client
                 )
             )
@@ -107,7 +107,7 @@ class MassOutageDetector:
             .where(
                 and_(
                     Message.created_at >= cutoff_time,
-                    Message.message_type == "user"
+                    Message.message_type == MessageType.USER  # Use enum instead of string
                 )
             )
             .group_by(Message.content)
