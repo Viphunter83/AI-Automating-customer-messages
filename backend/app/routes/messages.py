@@ -195,10 +195,12 @@ async def create_message(
         try:
             # ============ STEP 1: Check if this is first message from client ============
             # Use SELECT FOR UPDATE to prevent race conditions
+            # NOTE: Do NOT use skip_locked=True here - we need to wait for concurrent transactions
+            # to complete to get accurate is_first_message check
             existing_messages_result = await session.execute(
                 select(Message)
                 .where(Message.client_id == message_data.client_id)
-                .with_for_update(skip_locked=True)
+                .with_for_update()  # Wait for locks, don't skip - ensures accurate first message check
             )
             existing_messages = existing_messages_result.scalars().all()
             is_first_message = len(existing_messages) == 0
@@ -333,12 +335,30 @@ async def create_message(
                 escalation_result.get("should_escalate", False)
             )
             
-            # Set priority and escalation reason
+            # Set priority and escalation reason with validation
             priority_level_str = escalation_result.get("level", "low")
-            priority_level = PriorityLevel(priority_level_str)
+            try:
+                # Validate priority level before creating enum
+                priority_level = PriorityLevel(priority_level_str)
+            except ValueError:
+                logger.warning(
+                    f"Invalid priority level '{priority_level_str}' from escalation manager, "
+                    f"defaulting to 'low'"
+                )
+                priority_level = PriorityLevel.LOW
+            
             escalation_reason = None
-            if escalation_result.get("reasons"):
-                escalation_reason = EscalationReason(escalation_result["reasons"][0])
+            reasons = escalation_result.get("reasons")
+            if reasons and isinstance(reasons, list) and len(reasons) > 0:
+                try:
+                    # Validate escalation reason before creating enum
+                    escalation_reason = EscalationReason(reasons[0])
+                except (ValueError, IndexError) as e:
+                    logger.warning(
+                        f"Invalid escalation reason '{reasons[0] if reasons else None}': {e}, "
+                        f"skipping escalation reason"
+                    )
+                    escalation_reason = None
             
             original_message.priority = PriorityLevel(priority_level.value)
             original_message.escalation_reason = escalation_reason
@@ -419,10 +439,12 @@ async def create_message(
                 
                 logger.debug(f"Created reminders for message {original_message.id}")
             
-            # Cancel pending reminders
+            # Cancel pending reminders for messages created after this one
+            # Pass the current message ID to only cancel reminders for future messages
+            # This prevents cancelling reminders that should be kept
             cancelled = await reminder_service.cancel_client_reminders(
                 client_id=message_data.client_id,
-                after_message_id=None
+                after_message_id=str(original_message.id)  # Only cancel reminders for messages after this one
             )
             if cancelled > 0:
                 logger.debug(f"Cancelled {cancelled} pending reminders for {message_data.client_id}")

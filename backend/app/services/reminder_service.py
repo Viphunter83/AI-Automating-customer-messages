@@ -146,11 +146,13 @@ class ReminderService:
         
         if after_message_id:
             # Get the message to compare creation time
+            # NOTE: Do NOT use skip_locked=True here - if message is locked, we should wait
+            # to get accurate results. If we skip and get None, we'd incorrectly cancel ALL reminders.
             from app.models.database import Message
             message_result = await self.session.execute(
                 select(Message)
                 .where(Message.id == uuid.UUID(after_message_id))
-                .with_for_update(skip_locked=True)
+                .with_for_update()  # Wait for lock, don't skip - ensures accurate reminder cancellation
             )
             message = message_result.scalar_one_or_none()
             
@@ -168,8 +170,15 @@ class ReminderService:
                     )
                 )
             else:
-                # If message not found, cancel all reminders for this client
-                logger.warning(f"Message {after_message_id} not found, cancelling all reminders for {client_id}")
+                # If message not found (after waiting for lock), it truly doesn't exist
+                # Only cancel reminders if we're sure the message doesn't exist
+                # Don't cancel all reminders - this could be a race condition
+                logger.warning(
+                    f"Message {after_message_id} not found after lock wait. "
+                    f"Not cancelling reminders to avoid race condition."
+                )
+                # Return 0 instead of cancelling all reminders
+                return 0
         
         if not conditions:
             logger.debug(f"No conditions to cancel reminders for {client_id}")
