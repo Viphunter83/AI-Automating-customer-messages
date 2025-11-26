@@ -108,7 +108,8 @@ async def update_template(
     has_changes = False
     
     # Update fields
-    if update_data.template_text is not None:
+    # Check for template_text: must be provided (not None) and non-empty
+    if update_data.template_text is not None and update_data.template_text.strip():
         if template.template_text != update_data.template_text:
             template.template_text = update_data.template_text
             has_changes = True
@@ -127,10 +128,11 @@ async def update_template(
     if has_changes:
         template.version += 1
         template.updated_at = datetime.utcnow()
+        logger.info(f"✅ Updated template {scenario_name} to v{template.version}")
+    else:
+        logger.debug(f"No changes detected for template {scenario_name}")
     
     await session.commit()
-    
-    logger.info(f"✅ Updated template {scenario_name} to v{template.version}")
     
     return ResponseTemplateResponse(
         id=str(template.id),
