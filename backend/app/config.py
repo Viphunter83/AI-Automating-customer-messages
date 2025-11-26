@@ -13,12 +13,12 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     
     # Database
-    database_url: str
-    supabase_url: str
-    supabase_anon_key: str
+    database_url: str = "postgresql+asyncpg://user:password@localhost:5432/ai_support"
+    supabase_url: str = ""
+    supabase_anon_key: str = ""
     
     # OpenAI
-    openai_api_key: str
+    openai_api_key: str = ""
     openai_api_base: str = "https://api.proxyapi.ru/openai/v1"
     openai_model: str = "gpt-4o-mini"
     
@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     ai_confidence_threshold: float = 0.85
     
     # Security
-    secret_key: str
+    secret_key: str = "dev-secret-key-change-in-production"
     allowed_origins: Union[str, List[str]] = "http://localhost:3000,http://localhost:8000"
     
     @field_validator('allowed_origins', mode='before')
