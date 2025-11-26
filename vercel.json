@@ -1,0 +1,35 @@
+{
+  "version": 2,
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python"
+    }
+  ],
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "api/index.py"
+    }
+  ],
+  "functions": {
+    "api/index.py": {
+      "maxDuration": 30,
+      "memory": 1024,
+      "runtime": "python3.11"
+    }
+  },
+  "excludeFiles": [
+    "frontend/**",
+    "node_modules/**",
+    "*.md",
+    "docker-compose*.yml",
+    "Dockerfile",
+    ".git/**",
+    "__pycache__/**",
+    "*.pyc",
+    ".env",
+    ".env.local"
+  ]
+}
+

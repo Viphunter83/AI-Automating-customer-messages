@@ -259,6 +259,7 @@ async def create_message(
                 await session.commit()
                 
                 # Send webhook if needed
+                webhook_result = None  # Initialize to avoid AttributeError if exception occurs
                 if webhook_data:
                     try:
                         webhook_sender_instance = WebhookSender(platform_webhook_url=x_webhook_url) if x_webhook_url else webhook_sender
@@ -271,6 +272,12 @@ async def create_message(
                         logger.info(f"📤 Webhook send result: {webhook_result}")
                     except Exception as webhook_error:
                         logger.error(f"❌ Webhook send failed (non-critical): {str(webhook_error)}")
+                        # Initialize webhook_result with error info to prevent AttributeError
+                        webhook_result = {
+                            "success": False,
+                            "error": str(webhook_error),
+                            "note": "Message was saved successfully, but webhook failed"
+                        }
                 
                 # Return early - no further processing needed for empty text
                 return {
@@ -286,8 +293,8 @@ async def create_message(
                         "type": response_msg.message_type.value if response_msg else "unknown",
                     },
                     "webhook": {
-                        "success": webhook_result.get("success", False) if webhook_data else None,
-                        "error": webhook_result.get("error") if webhook_data else None,
+                        "success": webhook_result.get("success", False) if webhook_result else None,
+                        "error": webhook_result.get("error") if webhook_result else None,
                     } if webhook_data else None,
                 }
             
