@@ -7,7 +7,7 @@ python-multipart==0.0.6
 sqlalchemy==2.0.23
 alembic==1.13.0
 asyncpg==0.29.0
-psycopg[binary]==3.19.1
+psycopg[binary]==3.2.13
 
 # Data Validation
 pydantic==2.5.0

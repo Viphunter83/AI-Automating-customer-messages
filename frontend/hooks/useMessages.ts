@@ -63,9 +63,9 @@ export function useChatSession(clientId: string) {
   const { data: messages = [], isLoading: messagesLoading } = useMessages(clientId)
   const { data: classifications = [], isLoading: classificationsLoading } = useClassifications(clientId)
   
-  const combined: MessageWithClassification[] = messages.map(msg => ({
+  const combined: MessageWithClassification[] = messages.map((msg: Message) => ({
     ...msg,
-    classification: classifications.find(c => c.message_id === msg.id)
+    classification: classifications.find((c: Classification) => c.message_id === msg.id)
   }))
   
   return {

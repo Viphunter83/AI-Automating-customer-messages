@@ -16,10 +16,14 @@ export default function RootLayout({
     <html lang="en">
       <body>
         <Providers>
-          <nav className="bg-gray-900 text-white p-4">
-            <h1 className="text-xl font-bold">AI Support Dashboard</h1>
+          <nav className="bg-gray-900 text-white p-4 flex items-center gap-8">
+            <h1 className="text-xl font-bold">AI Support</h1>
+            <div className="flex gap-4">
+              <a href="/dashboard" className="hover:text-gray-300">Dashboard</a>
+              <a href="/admin" className="hover:text-gray-300">Admin</a>
+            </div>
           </nav>
-          <main className="p-8">
+          <main>
             {children}
           </main>
         </Providers>

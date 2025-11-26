@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app import create_app
-from app.routes import health, messages, feedback, ws
+from app.routes import health, messages, feedback, ws, admin
 import logging
 import asyncio
 import subprocess
@@ -21,6 +21,7 @@ app = create_app()
 app.include_router(health.router)
 app.include_router(messages.router)
 app.include_router(feedback.router)
+app.include_router(admin.router)
 app.include_router(ws.router)
 
 @app.get("/")
@@ -29,6 +30,7 @@ async def root():
         "message": "AI Customer Support API v1.0",
         "docs": "/docs",
         "health": "/health",
+        "admin": "/api/admin",
         "status": "running"
     }
 

@@ -1,4 +1,4 @@
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import BaseSettings
 from pydantic import field_validator
 from typing import List, Union
 from functools import lru_cache
@@ -31,11 +31,6 @@ class Settings(BaseSettings):
     secret_key: str
     allowed_origins: Union[str, List[str]] = "http://localhost:3000,http://localhost:8000"
     
-    model_config = SettingsConfigDict(
-        env_file=".env",
-        case_sensitive=False,
-    )
-    
     @field_validator('allowed_origins', mode='before')
     @classmethod
     def parse_allowed_origins(cls, v):
@@ -51,6 +46,10 @@ class Settings(BaseSettings):
             # Fallback to comma-separated
             return [origin.strip() for origin in v.split(',') if origin.strip()]
         return ["http://localhost:3000", "http://localhost:8000"]
+    
+    class Config:
+        env_file = ".env"
+        case_sensitive = False
 
 @lru_cache()
 def get_settings() -> Settings:
