@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from app.models.schemas import MessageCreate, MessageResponse, MessageTypeEnum
-from app.models.database import Message, MessageType
+from app.models.schemas import MessageCreate, MessageResponse, ClassificationResponse, MessageTypeEnum
+from app.models.database import Message, MessageType, Classification, ScenarioType
 from app.database import get_session
+from app.services.ai_classifier import AIClassifier
+from app.services.text_processor import TextProcessor
+from app.services.response_manager import ResponseManager
 from uuid import uuid4
 import logging
 
@@ -11,13 +14,24 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/messages", tags=["messages"])
 
-@router.post("/", response_model=MessageResponse, status_code=status.HTTP_201_CREATED)
+# Initialize services
+text_processor = TextProcessor()
+ai_classifier = AIClassifier()
+
+@router.post("/", response_model=dict, status_code=status.HTTP_201_CREATED)
 async def create_message(
     message_data: MessageCreate,
     session: AsyncSession = Depends(get_session)
 ):
     """
-    Webhook endpoint для получения сообщений от чат-платформы.
+    Main webhook endpoint for receiving messages from chat platform.
+    
+    Flow:
+    1. Save original message
+    2. Clean and process text
+    3. Classify using ИИ
+    4. Create response
+    5. Return result
     
     Expected JSON:
     {
@@ -26,55 +40,145 @@ async def create_message(
     }
     """
     try:
-        # Create message record
-        message = Message(
+        logger.info(f"📨 Received message from {message_data.client_id}: {message_data.content[:50]}...")
+        
+        # ============ STEP 1: Save original message ============
+        original_message = Message(
             id=uuid4(),
             client_id=message_data.client_id,
             content=message_data.content,
             message_type=MessageType.USER,
             is_processed=False,
         )
+        session.add(original_message)
+        await session.flush()
+        logger.debug(f"✅ Saved original message: {original_message.id}")
         
-        session.add(message)
-        await session.flush()  # Flush to get the ID
+        # ============ STEP 2: Process text ============
+        processed_text = text_processor.process(message_data.content)
+        logger.debug(f"📝 Processed text: {processed_text}")
         
-        logger.info(f"Message created: {message.id} for client: {message_data.client_id}")
+        if not processed_text:
+            logger.warning("Processed text is empty (noise detected)")
+            response_msg, response_text = await ResponseManager(session).create_fallback_response(
+                message_data.client_id,
+                reason="empty_text"
+            )
+            await session.commit()
+            return {
+                "status": "fallback",
+                "original_message_id": str(original_message.id),
+                "response_message_id": str(response_msg.id) if response_msg else None,
+                "response_text": response_text,
+                "reason": "Message is empty or noise",
+            }
         
-        # TODO: Запустить классификацию (в следующем промпте)
-        # TODO: Выбрать шаблон ответа
-        # TODO: Отправить ответ обратно на платформу
+        # ============ STEP 3: Classify using ИИ ============
+        classification_result = await ai_classifier.classify(
+            message=processed_text,
+            client_id=message_data.client_id
+        )
         
+        if not classification_result.get("success"):
+            logger.error(f"❌ Classification failed: {classification_result.get('error')}")
+            response_msg, response_text = await ResponseManager(session).create_fallback_response(
+                message_data.client_id,
+                reason="classification_error"
+            )
+            await session.commit()
+            return {
+                "status": "fallback",
+                "original_message_id": str(original_message.id),
+                "response_message_id": str(response_msg.id) if response_msg else None,
+                "response_text": response_text,
+                "reason": "Classification error",
+            }
+        
+        scenario = classification_result.get("scenario")
+        confidence = classification_result.get("confidence")
+        
+        logger.info(f"🤖 Classification: {scenario} (confidence: {confidence:.2f})")
+        
+        # ============ STEP 4: Save classification ============
+        classification = Classification(
+            id=uuid4(),
+            message_id=original_message.id,
+            detected_scenario=ScenarioType[scenario],
+            confidence=confidence,
+            ai_model=classification_result.get("model"),
+            reasoning=classification_result.get("reasoning"),
+        )
+        session.add(classification)
+        await session.flush()
+        logger.debug(f"✅ Saved classification: {classification.id}")
+        
+        # ============ STEP 5: Create response ============
+        response_manager = ResponseManager(session)
+        response_msg, response_text = await response_manager.create_bot_response(
+            scenario=scenario,
+            client_id=message_data.client_id,
+            original_message_id=str(original_message.id),
+            params={"referral_link": f"https://example.com/ref/{message_data.client_id}"},
+            message_type=MessageType.BOT_AUTO if scenario != "UNKNOWN" else MessageType.BOT_ESCALATED
+        )
+        
+        if not response_msg:
+            logger.error(f"❌ Failed to create response: {response_text}")
+            # Fallback to UNKNOWN
+            response_msg, response_text = await response_manager.create_fallback_response(
+                message_data.client_id,
+                reason="response_creation_error"
+            )
+        
+        logger.info(f"✅ Created response: {response_msg.id if response_msg else 'None'}")
+        
+        # ============ STEP 6: Mark original as processed ============
+        original_message.is_processed = True
         await session.commit()
         
-        return MessageResponse(
-            id=str(message.id),
-            client_id=message.client_id,
-            content=message.content,
-            message_type=MessageTypeEnum(message.message_type.value),
-            created_at=message.created_at,
-        )
+        logger.info(f"✅ Complete processing for {message_data.client_id}")
+        
+        return {
+            "status": "success" if scenario != "UNKNOWN" else "escalated",
+            "original_message_id": str(original_message.id),
+            "classification": {
+                "id": str(classification.id),
+                "scenario": scenario,
+                "confidence": confidence,
+                "reasoning": classification_result.get("reasoning"),
+            },
+            "response": {
+                "message_id": str(response_msg.id),
+                "text": response_text,
+                "type": response_msg.message_type.value if response_msg else "unknown",
+            }
+        }
     
     except Exception as e:
-        logger.error(f"Error creating message: {str(e)}")
+        logger.error(f"❌ Unexpected error: {type(e).__name__}: {str(e)}", exc_info=True)
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to process message"
+            detail=f"Failed to process message: {str(e)}"
         )
 
 @router.get("/{client_id}", response_model=list[MessageResponse])
 async def get_client_messages(
     client_id: str,
+    limit: int = 50,
     session: AsyncSession = Depends(get_session)
 ):
-    """Get all messages for a specific client"""
+    """Get message history for a specific client"""
     try:
         result = await session.execute(
             select(Message)
             .where(Message.client_id == client_id)
             .order_by(Message.created_at.desc())
+            .limit(limit)
         )
         messages = result.scalars().all()
+        
+        logger.info(f"Retrieved {len(messages)} messages for client {client_id}")
         
         return [
             MessageResponse(
@@ -86,10 +190,45 @@ async def get_client_messages(
             )
             for m in messages
         ]
+    
     except Exception as e:
-        logger.error(f"Error fetching messages: {str(e)}")
+        logger.error(f"Error fetching messages for {client_id}: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail="Failed to fetch messages"
         )
 
+@router.get("/{client_id}/classifications")
+async def get_client_classifications(
+    client_id: str,
+    session: AsyncSession = Depends(get_session)
+):
+    """Get classification history for a client"""
+    try:
+        result = await session.execute(
+            select(Classification)
+            .join(Message)
+            .where(Message.client_id == client_id)
+            .order_by(Classification.created_at.desc())
+            .limit(50)
+        )
+        classifications = result.scalars().all()
+        
+        return [
+            ClassificationResponse(
+                id=str(c.id),
+                message_id=str(c.message_id),
+                detected_scenario=c.detected_scenario,
+                confidence=c.confidence,
+                ai_model=c.ai_model,
+                created_at=c.created_at,
+            )
+            for c in classifications
+        ]
+    
+    except Exception as e:
+        logger.error(f"Error fetching classifications: {str(e)}")
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to fetch classifications"
+        )
