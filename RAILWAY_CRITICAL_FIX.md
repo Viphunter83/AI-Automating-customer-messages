@@ -53,14 +53,14 @@ Environment: ✅ Production ✅ Preview ✅ Development
 **Переменная 2: OPENAI_API_KEY**
 ```
 Variable Name: OPENAI_API_KEY
-Value: sk-tsnn3jx66aPvVtcGGte3MxRJ35DT8Uyz
+Value: sk-your-api-key-here (замените на ваш реальный ключ)
 Environment: ✅ Production ✅ Preview ✅ Development
 ```
 
 **Переменная 3: SECRET_KEY**
 ```
 Variable Name: SECRET_KEY
-Value: bCTR2fSwMxOvisSFpKh0qnQKt2NY4jJRLzR_5R8MI5Q
+Value: your-secret-key-minimum-32-characters-long (замените на случайную строку)
 Environment: ✅ Production ✅ Preview ✅ Development
 ```
 

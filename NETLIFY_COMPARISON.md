@@ -76,16 +76,22 @@
 
 **netlify/functions/api.py:**
 ```python
-from mangum import Mangum
-import sys
-import os
+# Note: mangum would be needed for Netlify, but this project uses Vercel
+# which has native ASGI support, so mangum is not included in requirements.txt
+# If deploying to Netlify, you would need to:
+# 1. Add mangum to requirements.txt
+# 2. Use the code below
 
-backend_path = os.path.join(os.path.dirname(__file__), '..', '..', 'backend')
-sys.path.insert(0, backend_path)
-
-from main import app
-
-handler = Mangum(app)
+# from mangum import Mangum
+# import sys
+# import os
+# 
+# backend_path = os.path.join(os.path.dirname(__file__), '..', '..', 'backend')
+# sys.path.insert(0, backend_path)
+# 
+# from main import app
+# 
+# handler = Mangum(app)
 ```
 
 ---

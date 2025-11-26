@@ -57,7 +57,7 @@ Railway не может найти обязательные переменные
 
 ```
 Имя: OPENAI_API_KEY
-Значение: sk-tsnn3jx66aPvVtcGGte3MxRJ35DT8Uyz
+Значение: sk-your-api-key-here (замените на ваш реальный ключ)
 ```
 *Или ваш реальный ключ от ProxyAPI*
 

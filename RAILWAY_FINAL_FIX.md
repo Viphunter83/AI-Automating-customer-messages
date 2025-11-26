@@ -48,13 +48,13 @@
 **2. OPENAI_API_KEY**
 ```
 Имя: OPENAI_API_KEY
-Значение: sk-tsnn3jx66aPvVtcGGte3MxRJ35DT8Uyz
+Значение: sk-your-api-key-here (замените на ваш реальный ключ)
 ```
 
 **3. SECRET_KEY**
 ```
 Имя: SECRET_KEY
-Значение: bCTR2fSwMxOvisSFpKh0qnQKt2NY4jJRLzR_5R8MI5Q
+Значение: your-secret-key-minimum-32-characters-long (замените на случайную строку)
 ```
 
 **ВАЖНО при добавлении:**

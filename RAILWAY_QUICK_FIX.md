@@ -21,7 +21,7 @@ DATABASE_URL = {{PostgreSQL.DATABASE_URL}}
 *Затем вручную измените `postgresql://` на `postgresql+asyncpg://`*
 
 ```
-OPENAI_API_KEY = sk-tsnn3jx66aPvVtcGGte3MxRJ35DT8Uyz
+OPENAI_API_KEY = sk-your-api-key-here
 ```
 
 ```

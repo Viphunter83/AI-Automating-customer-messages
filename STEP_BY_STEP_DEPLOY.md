@@ -92,7 +92,7 @@ vercel
 **Обязательные:**
 ```
 DATABASE_URL = postgresql+asyncpg://postgres:PASSWORD@HOST:PORT/railway
-OPENAI_API_KEY = sk-tsnn3jx66aPvVtcGGte3MxRJ35DT8Uyz
+OPENAI_API_KEY = sk-your-api-key-here
 SECRET_KEY = your-secret-key-minimum-32-characters-long-change-this
 ```
 

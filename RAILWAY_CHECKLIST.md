@@ -10,7 +10,7 @@
 ### 1. ✅ Обновить `requirements.txt` в корне
 
 **Проблема:** Неполный список зависимостей  
-**Решение:** ✅ Исправлено - добавлен `mangum`
+**Решение:** ✅ Исправлено - зависимости синхронизированы
 
 ---
 
@@ -34,12 +34,12 @@
    - Или использовать: `{{PostgreSQL.DATABASE_URL}}` и изменить формат
 
 2. **OPENAI_API_KEY**
-   - Значение: `sk-tsnn3jx66aPvVtcGGte3MxRJ35DT8Uyz`
-   - Или ваш реальный ключ
+   - Значение: `sk-your-api-key-here` (замените на ваш реальный ключ)
+   - Получите из вашего ProxyAPI аккаунта
 
 3. **SECRET_KEY**
-   - Значение: `bCTR2fSwMxOvisSFpKh0qnQKt2NY4jJRLzR_5R8MI5Q`
-   - Или сгенерировать новый: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`
+   - Значение: `your-secret-key-minimum-32-characters-long` (замените на случайную строку)
+   - Сгенерировать: `python3 -c "import secrets; print(secrets.token_urlsafe(32))"`
 
 #### Опциональные переменные:
 
@@ -56,7 +56,7 @@
 
 ```bash
 git add requirements.txt runtime.txt
-git commit -m "Fix Railway configuration: add mangum and runtime.txt"
+git commit -m "Fix Railway configuration: add runtime.txt"
 git push
 ```
 
@@ -80,7 +80,7 @@ git push
 
 ## ✅ Итоговый чеклист
 
-- [x] `requirements.txt` обновлен (добавлен `mangum`)
+- [x] `requirements.txt` обновлен
 - [x] `runtime.txt` создан
 - [x] `railway.toml` настроен правильно
 - [x] `Procfile` существует

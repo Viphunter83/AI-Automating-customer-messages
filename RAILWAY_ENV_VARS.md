@@ -45,7 +45,7 @@ secret_key - Field required
 **2. OPENAI_API_KEY**
 ```
 Имя: OPENAI_API_KEY
-Значение: sk-tsnn3jx66aPvVtcGGte3MxRJ35DT8Uyz
+Значение: sk-your-api-key-here (замените на ваш реальный ключ)
 ```
 *Или ваш реальный ключ от ProxyAPI*
 
@@ -110,7 +110,7 @@ Railway позволяет ссылаться на переменные друг
 
 ```
 DATABASE_URL=postgresql+asyncpg://postgres:PASSWORD@HOST:PORT/railway
-OPENAI_API_KEY=sk-tsnn3jx66aPvVtcGGte3MxRJ35DT8Uyz
+OPENAI_API_KEY=sk-your-api-key-here
 SECRET_KEY=your-secret-key-minimum-32-characters-long-change-this
 OPENAI_API_BASE=https://api.proxyapi.ru/openai/v1
 OPENAI_MODEL=gpt-4o-mini

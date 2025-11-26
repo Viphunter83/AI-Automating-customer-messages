@@ -32,5 +32,4 @@ python-json-logger==2.0.7
 tenacity==8.2.3
 slowapi==0.1.8
 apscheduler==3.10.4
-mangum==0.17.0  # ASGI adapter for serverless (Vercel/AWS Lambda)
 

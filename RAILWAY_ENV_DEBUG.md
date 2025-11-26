@@ -55,8 +55,8 @@ Railway может не передавать переменные, если:
 
 ```
 DATABASE_URL = postgresql+asyncpg://postgres:PASSWORD@HOST:PORT/railway
-OPENAI_API_KEY = sk-tsnn3jx66aPvVtcGGte3MxRJ35DT8Uyz
-SECRET_KEY = bCTR2fSwMxOvisSFpKh0qnQKt2NY4jJRLzR_5R8MI5Q
+OPENAI_API_KEY = sk-your-api-key-here (замените на ваш реальный ключ)
+SECRET_KEY = your-secret-key-minimum-32-characters-long (замените на случайную строку)
 ```
 
 5. **Убедитесь, что выбраны окружения:** ✅ Production, ✅ Preview, ✅ Development
@@ -81,8 +81,8 @@ DATABASE_URL = {{PostgreSQL.DATABASE_URL}}
 
 ```bash
 DATABASE_URL=postgresql+asyncpg://postgres:PASSWORD@HOST:PORT/railway
-OPENAI_API_KEY=sk-tsnn3jx66aPvVtcGGte3MxRJ35DT8Uyz
-SECRET_KEY=bCTR2fSwMxOvisSFpKh0qnQKt2NY4jJRLzR_5R8MI5Q
+OPENAI_API_KEY=sk-your-api-key-here
+SECRET_KEY=your-secret-key-minimum-32-characters-long
 ```
 
 **⚠️ ВАЖНО:** Не коммитьте `.env` файл в Git! Он должен быть в `.gitignore`.
@@ -140,8 +140,8 @@ print(f"SECRET_KEY: {'SET' if os.getenv('SECRET_KEY') else 'NOT SET'}")
 **Обязательные:**
 ```
 DATABASE_URL = [из PostgreSQL, формат: postgresql+asyncpg://...]
-OPENAI_API_KEY = sk-tsnn3jx66aPvVtcGGte3MxRJ35DT8Uyz
-SECRET_KEY = bCTR2fSwMxOvisSFpKh0qnQKt2NY4jJRLzR_5R8MI5Q
+OPENAI_API_KEY = sk-your-api-key-here (замените на ваш реальный ключ)
+SECRET_KEY = your-secret-key-minimum-32-characters-long (замените на случайную строку)
 ```
 
 **Важно:**
