@@ -141,7 +141,9 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
                      <p><strong>Type:</strong> {selectedMessage.message_type}</p>
                      <p><strong>Scenario:</strong> {selectedMessage.classification.detected_scenario}</p>
                      <p><strong>Confidence:</strong> {(selectedMessage.classification.confidence * 100).toFixed(0)}%</p>
-                     <p className="text-gray-600"><strong>Reasoning:</strong> {selectedMessage.classification.reasoning}</p>
+                     {selectedMessage.classification.reasoning && (
+                       <p className="text-gray-600"><strong>Reasoning:</strong> {selectedMessage.classification.reasoning}</p>
+                     )}
                      {selectedMessage.is_first_message && (
                        <Badge variant="outline" className="text-xs">First Message</Badge>
                      )}

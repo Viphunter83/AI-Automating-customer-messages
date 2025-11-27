@@ -111,11 +111,7 @@ export function useChatSession(clientId: string) {
     const classification = classifications.find((c) => c.message_id === msg.id);
     return {
       ...msg,
-      escalation_reason: msg.escalation_reason ?? undefined, // Convert null to undefined
-      classification: classification ? {
-        ...classification,
-        reasoning: classification.reasoning ?? undefined // Convert null to undefined
-      } : undefined
+      classification: classification || undefined
     };
   })
   
