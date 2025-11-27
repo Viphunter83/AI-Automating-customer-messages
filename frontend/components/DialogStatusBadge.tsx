@@ -13,17 +13,17 @@ export function DialogStatusBadge({ status, className }: DialogStatusBadgeProps)
   const statusConfig = {
     open: {
       label: 'Открыт',
-      className: 'bg-green-100 text-green-800 border-green-300',
+      className: 'bg-green-100 text-green-900 border-green-300 dark:bg-green-900 dark:text-green-100',
       icon: '🟢'
     },
     closed: {
       label: 'Закрыт',
-      className: 'bg-gray-100 text-gray-800 border-gray-300',
+      className: 'bg-gray-200 text-gray-900 border-gray-400 dark:bg-gray-700 dark:text-gray-100',
       icon: '⚫'
     },
     escalated: {
       label: 'Эскалирован',
-      className: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+      className: 'bg-yellow-100 text-yellow-900 border-yellow-300 dark:bg-yellow-900 dark:text-yellow-100',
       icon: '⚠️'
     }
   }

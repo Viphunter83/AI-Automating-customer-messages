@@ -21,10 +21,11 @@ export default function RootLayout({
             <div className="max-w-7xl mx-auto flex items-center gap-8">
               <h1 className="text-xl font-bold">🤖 AI Support</h1>
               <div className="flex gap-6">
-                <Link href="/dashboard" className="hover:text-gray-300">Dashboard</Link>
-                <Link href="/search" className="hover:text-gray-300">Search</Link>
-                <Link href="/analytics" className="hover:text-gray-300">Analytics</Link>
-                <Link href="/admin" className="hover:text-gray-300">Admin</Link>
+                <Link href="/dashboard" className="hover:text-gray-300">Панель инструментов</Link>
+                <Link href="/demo" className="hover:text-gray-300">Демо</Link>
+                <Link href="/search" className="hover:text-gray-300">Поиск</Link>
+                <Link href="/analytics" className="hover:text-gray-300">Аналитика</Link>
+                <Link href="/admin" className="hover:text-gray-300">Администратор</Link>
               </div>
             </div>
           </nav>

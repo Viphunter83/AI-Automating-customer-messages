@@ -129,23 +129,23 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
         {selectedMessage && selectedMessage.classification ? (
           <>
                  <div className="p-4 bg-white border border-gray-200 rounded-lg">
-                   <h4 className="font-semibold mb-2">Message Details</h4>
+                   <h4 className="font-semibold mb-2 text-gray-900">Детали сообщения</h4>
                    <div className="space-y-2 text-sm">
                      <div className="flex items-center gap-2">
-                       <strong>Priority:</strong>
+                       <strong className="text-gray-900">Приоритет:</strong>
                        <PriorityBadge priority={selectedMessage.priority} size="sm" />
                      </div>
                      {selectedMessage.escalation_reason && (
-                       <p><strong>Escalation Reason:</strong> {selectedMessage.escalation_reason}</p>
+                       <p className="text-gray-900"><strong>Причина эскалации:</strong> {selectedMessage.escalation_reason}</p>
                      )}
-                     <p><strong>Type:</strong> {selectedMessage.message_type}</p>
-                     <p><strong>Scenario:</strong> {selectedMessage.classification.detected_scenario}</p>
-                     <p><strong>Confidence:</strong> {(selectedMessage.classification.confidence * 100).toFixed(0)}%</p>
+                     <p className="text-gray-900"><strong>Тип:</strong> {selectedMessage.message_type}</p>
+                     <p className="text-gray-900"><strong>Сценарий:</strong> {selectedMessage.classification.detected_scenario}</p>
+                     <p className="text-gray-900"><strong>Уверенность:</strong> {(selectedMessage.classification.confidence * 100).toFixed(0)}%</p>
                      {selectedMessage.classification.reasoning && (
-                       <p className="text-gray-600"><strong>Reasoning:</strong> {selectedMessage.classification.reasoning}</p>
+                       <p className="text-gray-700"><strong>Обоснование:</strong> {selectedMessage.classification.reasoning}</p>
                      )}
                      {selectedMessage.is_first_message && (
-                       <Badge variant="outline" className="text-xs">First Message</Badge>
+                       <Badge variant="outline" className="text-xs">Первое сообщение</Badge>
                      )}
                    </div>
                  </div>
@@ -157,15 +157,15 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
             />
           </>
         ) : (
-          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center text-gray-500">
-            <p>Select a message to review and provide feedback</p>
+          <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg text-center text-gray-700">
+            <p>Выберите сообщение для просмотра и оставления обратной связи</p>
           </div>
         )}
         
         {/* Message List for Selection */}
         <div className="flex-1 overflow-y-auto border border-gray-200 rounded-lg p-3 space-y-2 bg-white">
           <div className="flex items-center justify-between mb-2 px-1">
-            <p className="text-xs font-semibold text-gray-600">Messages with Classifications</p>
+            <p className="text-xs font-semibold text-gray-700">Сообщения с классификациями</p>
             <button
               onClick={() => setSortByPriority(!sortByPriority)}
               className="text-xs text-blue-600 hover:text-blue-800 underline"

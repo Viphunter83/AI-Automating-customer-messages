@@ -53,8 +53,9 @@ export function ChatHistory({ messages, isLoading, clientId }: ChatHistoryProps)
       className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
     >
       {messages.length === 0 && !isLoading && (
-        <div className="flex items-center justify-center h-full text-gray-500">
-          <p>No messages yet. Send a test message to start.</p>
+        <div className="flex flex-col items-center justify-center h-full text-gray-600">
+          <p className="text-lg mb-2">Пока нет сообщений.</p>
+          <p className="text-sm text-gray-500">Чтобы начать, отправьте тестовое сообщение.</p>
         </div>
       )}
       
