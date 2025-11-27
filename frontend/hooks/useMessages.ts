@@ -107,10 +107,17 @@ export function useChatSession(clientId: string) {
   const { data: messages = [], isLoading: messagesLoading } = useMessages(clientId)
   const { data: classifications = [], isLoading: classificationsLoading } = useClassifications(clientId)
   
-  const combined: MessageWithClassification[] = messages.map((msg: Message) => ({
-    ...msg,
-    classification: classifications.find((c: Classification) => c.message_id === msg.id)
-  }))
+  const combined: MessageWithClassification[] = messages.map((msg) => {
+    const classification = classifications.find((c) => c.message_id === msg.id);
+    return {
+      ...msg,
+      escalation_reason: msg.escalation_reason ?? undefined, // Convert null to undefined
+      classification: classification ? {
+        ...classification,
+        reasoning: classification.reasoning ?? undefined // Convert null to undefined
+      } : undefined
+    };
+  })
   
   return {
     messages: combined,
