@@ -21,9 +21,6 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@/*": [
-        "./*"
-      ],
       "@/lib/*": [
         "./lib/*"
       ],
@@ -35,6 +32,9 @@
       ],
       "@/app/*": [
         "./app/*"
+      ],
+      "@/*": [
+        "./*"
       ]
     },
     "allowJs": true,
