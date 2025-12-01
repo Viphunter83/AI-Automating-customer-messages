@@ -19,8 +19,8 @@
     "resolveJsonModule": true,
     "isolatedModules": true,
     "moduleResolution": "node",
-    "baseUrl": ".",
-    "rootDir": ".",
+    "baseUrl": "./",
+    "rootDir": "./",
     "paths": {
       "@/lib/types": [
         "./lib/types"

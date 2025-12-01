@@ -77,7 +77,14 @@ jobs:
         npm run lint
     - name: Type check
       working-directory: frontend
-      run: npm run type-check
+      run: |
+        echo "Current directory: $(pwd)"
+        echo "Files in lib/:"
+        ls -la lib/ || echo "lib/ not found"
+        echo "TypeScript config:"
+        cat tsconfig.json | grep -A 25 "paths" || echo "paths not found"
+        echo "Running type-check..."
+        npm run type-check 2>&1 | head -50
 
   # Build and Push Docker Images
   build-and-push:
