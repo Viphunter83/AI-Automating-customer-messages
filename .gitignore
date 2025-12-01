@@ -21,6 +21,8 @@ eggs/
 .eggs/
 lib/
 lib64/
+# But allow frontend/lib/ (TypeScript source files)
+!frontend/lib/
 parts/
 sdist/
 var/
