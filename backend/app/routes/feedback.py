@@ -1,24 +1,28 @@
+import logging
+from uuid import UUID, uuid4
+
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.models.schemas import OperatorFeedbackCreate, OperatorFeedbackResponse
-from app.models.database import OperatorFeedback
+
 from app.database import get_session
-from app.routes.ws import notify_operator, notify_all_operators
-from uuid import uuid4, UUID
-import logging
+from app.models.database import OperatorFeedback
+from app.models.schemas import OperatorFeedbackCreate, OperatorFeedbackResponse
+from app.routes.ws import notify_all_operators, notify_operator
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/feedback", tags=["feedback"])
 
-@router.post("/", response_model=OperatorFeedbackResponse, status_code=status.HTTP_201_CREATED)
+
+@router.post(
+    "/", response_model=OperatorFeedbackResponse, status_code=status.HTTP_201_CREATED
+)
 async def submit_feedback(
-    feedback_data: OperatorFeedbackCreate,
-    session: AsyncSession = Depends(get_session)
+    feedback_data: OperatorFeedbackCreate, session: AsyncSession = Depends(get_session)
 ):
     """
     Оператор отправляет фидбэк о правильности классификации.
-    
+
     Expected JSON:
     {
         "message_id": "uuid",
@@ -32,8 +36,12 @@ async def submit_feedback(
     try:
         # Convert string UUIDs to UUID objects
         message_uuid = UUID(feedback_data.message_id)
-        classification_uuid = UUID(feedback_data.classification_id) if feedback_data.classification_id else None
-        
+        classification_uuid = (
+            UUID(feedback_data.classification_id)
+            if feedback_data.classification_id
+            else None
+        )
+
         feedback = OperatorFeedback(
             id=uuid4(),
             message_id=message_uuid,
@@ -43,30 +51,32 @@ async def submit_feedback(
             suggested_scenario=feedback_data.suggested_scenario,
             comment=feedback_data.comment,
         )
-        
+
         session.add(feedback)
         await session.commit()
-        
+
         logger.info(
             f"✅ Feedback submitted: {feedback.id} "
             f"by operator: {feedback_data.operator_id} "
             f"type: {feedback_data.feedback_type}"
         )
-        
+
         # Notify other operators via WebSocket
         await notify_operator(
             feedback_data.operator_id,
             {
                 "type": "feedback_received",
                 "feedback_type": feedback_data.feedback_type,
-                "scenario": str(feedback_data.suggested_scenario) if feedback_data.suggested_scenario else None,
+                "scenario": str(feedback_data.suggested_scenario)
+                if feedback_data.suggested_scenario
+                else None,
                 "message": f"Feedback submitted: {feedback_data.feedback_type}",
                 "message_id": str(feedback.message_id),
-            }
+            },
         )
-        
+
         # TODO: Здесь можно запустить переобучение модели (в следующем промпте)
-        
+
         return OperatorFeedbackResponse(
             id=str(feedback.id),
             message_id=str(feedback.message_id),
@@ -76,12 +86,11 @@ async def submit_feedback(
             operator_id=feedback.operator_id,
             created_at=feedback.created_at,
         )
-    
+
     except Exception as e:
         logger.error(f"Error submitting feedback: {str(e)}")
         await session.rollback()
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to submit feedback"
+            detail="Failed to submit feedback",
         )
-

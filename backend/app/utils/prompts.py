@@ -74,7 +74,7 @@ RESPONSE_TEMPLATES = {
 
 Я помощник первой линии поддержки. Чем я могу вам помочь?""",
         "requires_params": {},
-        "description": "Initial greeting for new clients"
+        "description": "Initial greeting for new clients",
     },
     "REFERRAL": {
         "text": """Отлично, что спросили! 🎁
@@ -93,7 +93,7 @@ RESPONSE_TEMPLATES = {
 
 Остались вопросы?""",
         "requires_params": {"referral_link": "str"},
-        "description": "Referral program information"
+        "description": "Referral program information",
     },
     "TECH_SUPPORT_BASIC": {
         "text": """Помогу вам разобраться! 🔧
@@ -110,7 +110,7 @@ RESPONSE_TEMPLATES = {
 
 Я передам это специалистам.""",
         "requires_params": {},
-        "description": "Basic technical support"
+        "description": "Basic technical support",
     },
     "FAREWELL": {
         "text": """Спасибо, что обратились к нам! 🙏
@@ -119,7 +119,7 @@ RESPONSE_TEMPLATES = {
 
 Вы всегда можете обратиться к нам снова в любое время. До свидания!""",
         "requires_params": {},
-        "description": "Farewell message when closing dialog"
+        "description": "Farewell message when closing dialog",
     },
     "REMINDER": {
         "text": """Здравствуйте! 👋
@@ -128,7 +128,7 @@ RESPONSE_TEMPLATES = {
 
 Если вам нужна помощь, мы всегда на связи!""",
         "requires_params": {},
-        "description": "Reminder message when client hasn't responded"
+        "description": "Reminder message when client hasn't responded",
     },
     "ABSENCE_REQUEST": {
         "text": """Желаем вам скорейшего выздоровления! 💚
@@ -139,7 +139,7 @@ RESPONSE_TEMPLATES = {
 
 Если возникнут вопросы, обращайтесь — мы поможем!""",
         "requires_params": {},
-        "description": "Absence request due to illness"
+        "description": "Absence request due to illness",
     },
     "SCHEDULE_CHANGE": {
         "text": """Спасибо за обращение! 
@@ -148,7 +148,7 @@ RESPONSE_TEMPLATES = {
 
 Мы свяжемся с вами в ближайшее время для уточнения деталей.""",
         "requires_params": {},
-        "description": "Schedule or trainer change request - requires operator"
+        "description": "Schedule or trainer change request - requires operator",
     },
     "COMPLAINT": {
         "text": """Спасибо за обращение! 
@@ -159,7 +159,7 @@ RESPONSE_TEMPLATES = {
 
 С вами свяжутся в ближайшее время.""",
         "requires_params": {},
-        "description": "Complaint or negative feedback - high priority"
+        "description": "Complaint or negative feedback - high priority",
     },
     "MISSING_TRAINER": {
         "text": """Приносим извинения за неудобства! 😔
@@ -170,7 +170,7 @@ RESPONSE_TEMPLATES = {
 
 Спасибо за понимание!""",
         "requires_params": {},
-        "description": "Trainer didn't show up - urgent escalation"
+        "description": "Trainer didn't show up - urgent escalation",
     },
     "MASS_OUTAGE": {
         "text": """Уважаемые клиенты! ⚠️
@@ -181,7 +181,7 @@ RESPONSE_TEMPLATES = {
 
 Приносим извинения за временные неудобства. Мы сообщим, когда все будет восстановлено.""",
         "requires_params": {},
-        "description": "Mass platform outage notification"
+        "description": "Mass platform outage notification",
     },
     "REVIEW_BONUS": {
         "text": """Отлично, что спросили! 🎁
@@ -197,7 +197,7 @@ RESPONSE_TEMPLATES = {
 
 Остались вопросы?""",
         "requires_params": {},
-        "description": "Review bonus program information"
+        "description": "Review bonus program information",
     },
     "CROSS_EXTENSION": {
         "text": """Спасибо за обращение! 
@@ -206,7 +206,7 @@ RESPONSE_TEMPLATES = {
 
 Мы свяжемся с вами в ближайшее время для уточнения деталей и оформления.""",
         "requires_params": {},
-        "description": "Cross/extension request - requires operator"
+        "description": "Cross/extension request - requires operator",
     },
     "UNKNOWN": {
         "text": """Спасибо за обращение! 
@@ -215,7 +215,7 @@ RESPONSE_TEMPLATES = {
 
 Мы свяжемся с вами в ближайшее время.""",
         "requires_params": {},
-        "description": "Default fallback for unknown scenarios"
+        "description": "Default fallback for unknown scenarios",
     },
     "ESCALATED": {
         "text": """Спасибо за обращение! 
@@ -224,6 +224,6 @@ RESPONSE_TEMPLATES = {
 
 Мы свяжемся с вами в ближайшее время для решения вашего вопроса.""",
         "requires_params": {},
-        "description": "Message when request is escalated to operator"
-    }
+        "description": "Message when request is escalated to operator",
+    },
 }

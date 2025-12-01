@@ -1,8 +1,10 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
-from sqlalchemy.orm import sessionmaker, declarative_base
-from sqlalchemy import text
-from app.config import get_settings
 import logging
+
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
+from sqlalchemy.orm import declarative_base, sessionmaker
+
+from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 settings = get_settings()
@@ -28,16 +30,19 @@ async_session_maker = sessionmaker(
 # Base class for all models
 Base = declarative_base()
 
+
 # Dependency for FastAPI
 async def get_session() -> AsyncSession:
     async with async_session_maker() as session:
         yield session
+
 
 async def init_db():
     """Initialize database tables"""
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     logger.info("Database initialized")
+
 
 async def close_db():
     """Close database connections"""

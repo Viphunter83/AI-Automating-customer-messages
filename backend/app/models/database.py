@@ -1,10 +1,15 @@
-from sqlalchemy import Column, String, Text, Float, Boolean, DateTime, Integer, Enum as SQLEnum, JSON, ForeignKey
-from sqlalchemy.orm import relationship
-from sqlalchemy.dialects.postgresql import UUID
-from app.database import Base
-from datetime import datetime
 import uuid
+from datetime import datetime
 from enum import Enum
+
+from sqlalchemy import JSON, Boolean, Column, DateTime
+from sqlalchemy import Enum as SQLEnum
+from sqlalchemy import Float, ForeignKey, Integer, String, Text
+from sqlalchemy.dialects.postgresql import UUID
+from sqlalchemy.orm import relationship
+
+from app.database import Base
+
 
 class ScenarioType(str, Enum):
     GREETING = "GREETING"
@@ -22,17 +27,20 @@ class ScenarioType(str, Enum):
     UNKNOWN = "UNKNOWN"
     ESCALATED = "ESCALATED"  # Special scenario for escalation notifications
 
+
 class MessageType(str, Enum):
     USER = "user"
     BOT_AUTO = "bot_auto"
     BOT_ESCALATED = "bot_escalated"
     OPERATOR = "operator"
 
+
 class PriorityLevel(str, Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
     CRITICAL = "critical"
+
 
 class EscalationReason(str, Enum):
     LOW_CONFIDENCE = "low_confidence"
@@ -42,40 +50,60 @@ class EscalationReason(str, Enum):
     OPERATOR_MARKED = "operator_marked"
     SYSTEM_ERROR = "system_error"
 
+
 class Message(Base):
     __tablename__ = "messages"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id = Column(String(255), nullable=False, index=True)
     content = Column(Text, nullable=False)
-    message_type = Column(SQLEnum(MessageType), default=MessageType.USER, nullable=False)
+    message_type = Column(
+        SQLEnum(MessageType), default=MessageType.USER, nullable=False
+    )
     is_processed = Column(Boolean, default=False)
     is_first_message = Column(Boolean, default=False, nullable=False)
-    priority = Column(SQLEnum(PriorityLevel, native_enum=False, values_callable=lambda x: [e.value for e in PriorityLevel]), default=PriorityLevel.LOW.value, nullable=False, index=True)
+    priority = Column(
+        SQLEnum(
+            PriorityLevel,
+            native_enum=False,
+            values_callable=lambda x: [e.value for e in PriorityLevel],
+        ),
+        default=PriorityLevel.LOW.value,
+        nullable=False,
+        index=True,
+    )
     escalation_reason = Column(SQLEnum(EscalationReason), nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
+
     # Relationships
-    classifications = relationship("Classification", back_populates="message", cascade="all, delete-orphan")
-    feedbacks = relationship("OperatorFeedback", back_populates="message", cascade="all, delete-orphan")
+    classifications = relationship(
+        "Classification", back_populates="message", cascade="all, delete-orphan"
+    )
+    feedbacks = relationship(
+        "OperatorFeedback", back_populates="message", cascade="all, delete-orphan"
+    )
+
 
 class Classification(Base):
     __tablename__ = "classifications"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    message_id = Column(UUID(as_uuid=True), ForeignKey("messages.id"), nullable=False, index=True)
+    message_id = Column(
+        UUID(as_uuid=True), ForeignKey("messages.id"), nullable=False, index=True
+    )
     detected_scenario = Column(SQLEnum(ScenarioType), nullable=False)
     confidence = Column(Float, nullable=False)  # 0-1
     ai_model = Column(String(100), default="openai_4o_mini")
     reasoning = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
+
     # Relationships
     message = relationship("Message", back_populates="classifications")
 
+
 class ResponseTemplate(Base):
     __tablename__ = "response_templates"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     scenario_name = Column(SQLEnum(ScenarioType), unique=True, nullable=False)
     template_text = Column(Text, nullable=False)
@@ -84,33 +112,42 @@ class ResponseTemplate(Base):
     is_active = Column(Boolean, default=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
+
 class Keyword(Base):
     __tablename__ = "keywords"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     scenario_name = Column(SQLEnum(ScenarioType), nullable=False, index=True)
     keyword = Column(String(255), nullable=False)
     priority = Column(Integer, default=5)  # 1-10
     created_at = Column(DateTime, default=datetime.utcnow)
 
+
 class OperatorFeedback(Base):
     __tablename__ = "operator_feedback"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    message_id = Column(UUID(as_uuid=True), ForeignKey("messages.id"), nullable=False, index=True)
-    classification_id = Column(UUID(as_uuid=True), ForeignKey("classifications.id"), nullable=True)
+    message_id = Column(
+        UUID(as_uuid=True), ForeignKey("messages.id"), nullable=False, index=True
+    )
+    classification_id = Column(
+        UUID(as_uuid=True), ForeignKey("classifications.id"), nullable=True
+    )
     operator_id = Column(String(255), nullable=False)
-    feedback_type = Column(String(50), nullable=False)  # 'correct', 'incorrect', 'needs_escalation'
+    feedback_type = Column(
+        String(50), nullable=False
+    )  # 'correct', 'incorrect', 'needs_escalation'
     suggested_scenario = Column(SQLEnum(ScenarioType), nullable=True)
     comment = Column(Text, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow)
-    
+
     # Relationships
     message = relationship("Message", back_populates="feedbacks")
 
+
 class OperatorSessionLog(Base):
     __tablename__ = "operator_session_logs"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id = Column(String(255), nullable=False, index=True)
     bot_interaction_history = Column(JSON, default=[])
@@ -118,40 +155,51 @@ class OperatorSessionLog(Base):
     operator_id = Column(String(255), nullable=True)
     resolution_notes = Column(Text, nullable=True)
 
+
 class ReminderType(str, Enum):
     REMINDER_15MIN = "reminder_15min"
     REMINDER_30MIN = "reminder_30min"
     REMINDER_1DAY = "reminder_1day"
 
+
 class Reminder(Base):
     __tablename__ = "reminders"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id = Column(String(255), nullable=False, index=True)
-    message_id = Column(UUID(as_uuid=True), ForeignKey("messages.id"), nullable=False, index=True)
+    message_id = Column(
+        UUID(as_uuid=True), ForeignKey("messages.id"), nullable=False, index=True
+    )
     reminder_type = Column(SQLEnum(ReminderType), nullable=False)
     scheduled_at = Column(DateTime, nullable=False, index=True)
     sent_at = Column(DateTime, nullable=True)
     is_cancelled = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    
+
     # Relationships
     message = relationship("Message", foreign_keys=[message_id])
+
 
 class DialogStatus(str, Enum):
     OPEN = "open"
     CLOSED = "closed"
     ESCALATED = "escalated"
 
+
 class ChatSession(Base):
     __tablename__ = "chat_sessions"
-    
+
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     client_id = Column(String(255), nullable=False, unique=True, index=True)
-    status = Column(SQLEnum(DialogStatus), default=DialogStatus.OPEN, nullable=False, index=True)
-    last_activity_at = Column(DateTime, nullable=False, index=True, default=datetime.utcnow)
+    status = Column(
+        SQLEnum(DialogStatus), default=DialogStatus.OPEN, nullable=False, index=True
+    )
+    last_activity_at = Column(
+        DateTime, nullable=False, index=True, default=datetime.utcnow
+    )
     closed_at = Column(DateTime, nullable=True)
     farewell_sent_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-
+    updated_at = Column(
+        DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False
+    )
