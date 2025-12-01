@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import type { AxiosResponse } from 'axios'
 import { Input } from '@/components/ui/input'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -27,7 +28,7 @@ export default function SearchPage() {
           min_confidence: minConfidence,
           offset,
         }
-      }).then(r => r.data),
+      }).then((r: AxiosResponse) => r.data),
     enabled: searchQuery.length > 2 || selectedClient.length > 0,
   })
 
@@ -37,7 +38,7 @@ export default function SearchPage() {
     queryFn: () =>
       api.get('/api/search/clients/autocomplete', {
         params: { prefix: selectedClient }
-      }).then(r => r.data),
+      }).then((r: AxiosResponse) => r.data),
     enabled: selectedClient.length > 0,
   })
 

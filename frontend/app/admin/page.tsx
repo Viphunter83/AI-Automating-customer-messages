@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import type { AxiosResponse } from 'axios'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -15,28 +16,28 @@ export default function AdminPage() {
   // Feedback Summary
   const { data: feedbackData, isLoading: feedbackLoading } = useQuery({
     queryKey: ['admin', 'feedback', 'summary'],
-    queryFn: () => api.get('/api/admin/feedback/summary').then(r => r.data),
+    queryFn: () => api.get('/api/admin/feedback/summary').then((r: AxiosResponse) => r.data),
     refetchInterval: 30000,
   })
 
   // Classification Stats
   const { data: classificationStats } = useQuery({
     queryKey: ['admin', 'stats', 'classifications'],
-    queryFn: () => api.get('/api/admin/stats/classifications').then(r => r.data),
+    queryFn: () => api.get('/api/admin/stats/classifications').then((r: AxiosResponse) => r.data),
     refetchInterval: 30000,
   })
 
   // Message Stats
   const { data: messageStats } = useQuery({
     queryKey: ['admin', 'stats', 'messages'],
-    queryFn: () => api.get('/api/admin/stats/messages').then(r => r.data),
+    queryFn: () => api.get('/api/admin/stats/messages').then((r: AxiosResponse) => r.data),
     refetchInterval: 30000,
   })
 
   // Misclassified Messages
   const { data: misclassified } = useQuery({
     queryKey: ['admin', 'feedback', 'misclassified'],
-    queryFn: () => api.get('/api/admin/feedback/misclassified').then(r => r.data),
+    queryFn: () => api.get('/api/admin/feedback/misclassified').then((r: AxiosResponse) => r.data),
   })
 
   return (
@@ -198,7 +199,7 @@ function TemplatesManager() {
 
   const { data: templates } = useQuery({
     queryKey: ['admin', 'templates'],
-    queryFn: () => api.get('/api/admin/templates').then(r => r.data),
+    queryFn: () => api.get('/api/admin/templates').then((r: AxiosResponse) => r.data),
   })
 
   const updateMutation = useMutation({
@@ -294,7 +295,7 @@ function KeywordsManager() {
 
   const { data: keywords } = useQuery({
     queryKey: ['admin', 'keywords', selectedScenario],
-    queryFn: () => api.get(`/api/admin/keywords?scenario=${selectedScenario}`).then(r => r.data),
+    queryFn: () => api.get(`/api/admin/keywords?scenario=${selectedScenario}`).then((r: AxiosResponse) => r.data),
   })
 
   const addMutation = useMutation({

@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { api } from '@/lib/api'
+import type { AxiosResponse } from 'axios'
 import { Card } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
@@ -30,7 +31,7 @@ export default function AnalyticsPage() {
     queryFn: () =>
       api.get('/api/search/export/report', {
         params: { hours }
-      }).then(r => r.data),
+      }).then((r: AxiosResponse) => r.data),
     refetchInterval: 60000,
   })
 

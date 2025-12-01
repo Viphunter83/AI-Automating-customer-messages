@@ -23,6 +23,18 @@
     "paths": {
       "@/*": [
         "./*"
+      ],
+      "@/lib/*": [
+        "./lib/*"
+      ],
+      "@/components/*": [
+        "./components/*"
+      ],
+      "@/hooks/*": [
+        "./hooks/*"
+      ],
+      "@/app/*": [
+        "./app/*"
       ]
     },
     "allowJs": true,
