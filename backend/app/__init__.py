@@ -162,6 +162,42 @@ def create_app() -> FastAPI:
             if not settings.debug:
                 raise
 
+        # Initialize Telegram bot (if enabled)
+        if settings.telegram_enabled and settings.telegram_bot_token:
+            try:
+                from app.integrations.telegram.bot import TelegramBot
+                from app.routes.telegram import set_telegram_bot
+                
+                telegram_bot = TelegramBot(token=settings.telegram_bot_token)
+                set_telegram_bot(telegram_bot)
+                
+                # Start bot in polling mode (for development)
+                # In production, use webhook mode
+                if not settings.telegram_webhook_url:
+                    # Start polling in background task
+                    async def start_bot():
+                        try:
+                            await telegram_bot.start_polling()
+                        except Exception as e:
+                            logger.error(f"Telegram bot polling error: {e}", exc_info=True)
+                    
+                    import asyncio
+                    asyncio.create_task(start_bot())
+                    logger.info("✅ Telegram bot started (polling mode)")
+                else:
+                    # Setup webhook for production
+                    telegram_bot.setup_webhook(
+                        webhook_url=settings.telegram_webhook_url,
+                        secret_token=settings.telegram_webhook_secret,
+                    )
+                    logger.info(f"✅ Telegram bot webhook configured: {settings.telegram_webhook_url}")
+            except Exception as e:
+                logger.error(f"❌ Failed to initialize Telegram bot: {e}")
+                if not settings.debug:
+                    logger.warning("⚠️ Continuing without Telegram bot")
+                else:
+                    raise
+
         logger.info("✅ Application startup complete")
 
     @app.on_event("shutdown")
@@ -180,5 +216,14 @@ def create_app() -> FastAPI:
             await close_redis_cache()
         except Exception as e:
             logger.debug(f"Redis cache cleanup: {e}")
+
+        # Stop Telegram bot
+        try:
+            from app.routes.telegram import get_telegram_bot
+            telegram_bot = get_telegram_bot()
+            if telegram_bot:
+                await telegram_bot.stop_polling()
+        except Exception as e:
+            logger.debug(f"Telegram bot cleanup: {e}")
 
     return app

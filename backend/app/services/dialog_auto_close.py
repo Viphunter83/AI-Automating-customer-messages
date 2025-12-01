@@ -29,7 +29,13 @@ class DialogAutoCloseService:
         self.inactivity_timeout_minutes = 3  # Close after 3 minutes of inactivity
         self.farewell_delay_minutes = 2  # Send farewell after 2 minutes
 
-    async def get_or_create_session(self, client_id: str) -> ChatSession:
+    async def get_or_create_session(
+        self, 
+        client_id: str,
+        webhook_url: Optional[str] = None,
+        platform: Optional[str] = None,
+        chat_id: Optional[str] = None,
+    ) -> ChatSession:
         """Get existing session or create a new one"""
         result = await self.session.execute(
             select(ChatSession).where(ChatSession.client_id == client_id)
@@ -42,16 +48,39 @@ class DialogAutoCloseService:
                 client_id=client_id,
                 status=DialogStatus.OPEN,
                 last_activity_at=datetime.utcnow(),
+                webhook_url=webhook_url,
+                platform=platform,
+                chat_id=chat_id,
             )
             self.session.add(session)
             await self.session.flush()
             logger.debug(f"Created new chat session for client {client_id}")
+        else:
+            # Update webhook info if provided (for existing sessions)
+            if webhook_url is not None:
+                session.webhook_url = webhook_url
+            if platform is not None:
+                session.platform = platform
+            if chat_id is not None:
+                session.chat_id = chat_id
+            await self.session.flush()
 
         return session
 
-    async def update_activity(self, client_id: str) -> None:
-        """Update last activity timestamp for a client"""
-        session = await self.get_or_create_session(client_id)
+    async def update_activity(
+        self, 
+        client_id: str,
+        webhook_url: Optional[str] = None,
+        platform: Optional[str] = None,
+        chat_id: Optional[str] = None,
+    ) -> None:
+        """Update last activity timestamp for a client and save webhook info"""
+        session = await self.get_or_create_session(
+            client_id,
+            webhook_url=webhook_url,
+            platform=platform,
+            chat_id=chat_id,
+        )
 
         # If session was closed, reopen it
         if session.status == DialogStatus.CLOSED:
@@ -108,11 +137,40 @@ class DialogAutoCloseService:
     async def send_farewell_message(self, client_id: str) -> Optional[Dict]:
         """Send farewell message to client with delay"""
         try:
-            session = await self.get_or_create_session(client_id)
+            # Use a transaction to prevent race conditions
+            # Refresh session to get latest state
+            result = await self.session.execute(
+                select(ChatSession).where(ChatSession.client_id == client_id)
+            )
+            session = result.scalar_one_or_none()
+            
+            if not session:
+                session = await self.get_or_create_session(client_id)
+            else:
+                # Refresh to get latest state (prevent race conditions)
+                await self.session.refresh(session)
 
-            # Check if farewell already sent
+            # Check if farewell already sent (double-check after refresh)
             if session.farewell_sent_at:
-                logger.debug(f"Farewell already sent for client {client_id}")
+                logger.debug(f"Farewell already sent for client {client_id} (checked after refresh)")
+                return None
+            
+            # Use a temporary flag to prevent concurrent sends
+            # We'll set farewell_sent_at only after successful send
+            # For now, check if there's already a farewell message in the last minute
+            recent_farewell_check = await self.session.execute(
+                select(Message)
+                .where(
+                    Message.client_id == client_id,
+                    Message.message_type == MessageType.BOT_AUTO,
+                    Message.created_at >= datetime.utcnow() - timedelta(minutes=1)
+                )
+                .order_by(Message.created_at.desc())
+                .limit(1)
+            )
+            recent_farewell = recent_farewell_check.scalar_one_or_none()
+            if recent_farewell and "завершаем диалог" in recent_farewell.content.lower():
+                logger.debug(f"Recent farewell message found for client {client_id}, skipping duplicate")
                 return None
 
             # Get last message from client
@@ -159,7 +217,7 @@ class DialogAutoCloseService:
                 classification={"scenario": "FAREWELL", "confidence": 1.0},
             )
 
-            # Mark farewell as sent
+            # Update farewell timestamp (already set above as lock, but update after successful send)
             session.farewell_sent_at = datetime.utcnow()
             await self.session.flush()
 

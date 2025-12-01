@@ -90,22 +90,106 @@ class ReminderScheduler:
                     logger.error(f"Failed to create reminder response for {client_id}")
                     return
 
+                # Get webhook URL from ChatSession (saved when message was created)
+                from app.models.database import ChatSession
+                session_result = await session.execute(
+                    select(ChatSession).where(ChatSession.client_id == client_id)
+                )
+                chat_session = session_result.scalar_one_or_none()
+                
+                webhook_url = None
+                platform = None
+                chat_id = None
+                
+                if chat_session:
+                    # Use webhook info from ChatSession
+                    webhook_url = chat_session.webhook_url
+                    platform = chat_session.platform
+                    chat_id = chat_session.chat_id
+                
+                # Fallback logic if webhook not in session
+                if not webhook_url:
+                    if client_id.startswith("telegram_"):
+                        # Telegram client - use Telegram webhook endpoint
+                        import os
+                        webhook_base = os.getenv("TELEGRAM_WEBHOOK_BASE_URL", "http://localhost:8000")
+                        webhook_url = f"{webhook_base}/api/integrations/telegram/response"
+                        platform = "telegram"
+                        # Extract chat_id from client_id: "telegram_123456" -> "123456"
+                        try:
+                            chat_id = client_id.replace("telegram_", "")
+                        except Exception:
+                            pass
+                    elif client_id.startswith("mass_test_") or client_id.startswith("test_client_"):
+                        # Test clients without real webhook - skip sending
+                        logger.debug(
+                            f"Skipping reminder for test client {client_id}: no webhook URL available"
+                        )
+                        # Mark reminder as sent anyway to avoid retrying
+                        await reminder_service.mark_reminder_sent(reminder_id)
+                        await session.commit()
+                        return
+                    else:
+                        # For other clients, use default webhook URL from settings
+                        from app.config import get_settings
+                        settings = get_settings()
+                        default_webhook = getattr(settings, "platform_webhook_url", None)
+                        if not default_webhook:
+                            logger.debug(
+                                f"Skipping reminder for client {client_id}: no webhook URL configured"
+                            )
+                            # Mark reminder as sent anyway to avoid retrying
+                            await reminder_service.mark_reminder_sent(reminder_id)
+                            await session.commit()
+                            return
+                        webhook_url = default_webhook
+
+                # Create WebhookSender with appropriate URL and platform info
+                from app.services.webhook_sender import WebhookSender
+                webhook_sender = WebhookSender(
+                    platform_webhook_url=webhook_url,
+                    platform=platform,
+                    chat_id=chat_id,
+                )
+
                 # Send via webhook
-                webhook_result = await self.webhook_sender.send_response(
+                webhook_result = await webhook_sender.send_response(
                     client_id=client_id,
                     response_text=response_text,
                     message_id=str(response_msg.id),
                     classification={"scenario": "REMINDER", "confidence": 1.0},
                 )
 
-                # Mark reminder as sent
-                await reminder_service.mark_reminder_sent(reminder_id)
-                await session.commit()
-
-                logger.info(
-                    f"Sent reminder {reminder_id} to client {client_id}, "
-                    f"webhook_result={webhook_result.get('success', False)}"
-                )
+                # Mark reminder as sent only if webhook was successful
+                if webhook_result.get("success"):
+                    await reminder_service.mark_reminder_sent(reminder_id)
+                    await session.commit()
+                    logger.info(
+                        f"✅ Sent reminder {reminder_id} to client {client_id}"
+                    )
+                else:
+                    # Handle failed webhook delivery with retry logic
+                    is_retryable = webhook_result.get("retryable", True)  # Default to retryable
+                    reminder.failed_attempts += 1
+                    reminder.last_failed_at = datetime.utcnow()
+                    
+                    if reminder.failed_attempts >= reminder.max_retry_attempts or not is_retryable:
+                        # Max retries reached or non-retryable error - mark as failed
+                        logger.error(
+                            f"❌ Reminder {reminder_id} failed permanently after {reminder.failed_attempts} attempts: "
+                            f"{webhook_result.get('error')}"
+                        )
+                        # Mark as cancelled to stop retrying
+                        reminder.is_cancelled = True
+                    else:
+                        # Will retry on next scheduler run
+                        logger.warning(
+                            f"⚠️ Failed to send reminder {reminder_id} to client {client_id} "
+                            f"(attempt {reminder.failed_attempts}/{reminder.max_retry_attempts}): "
+                            f"{webhook_result.get('error')}"
+                        )
+                    
+                    await session.commit()
 
             except Exception as e:
                 error_type = type(e).__name__

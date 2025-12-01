@@ -1,5 +1,6 @@
 import pytest
 import os
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 from app.database import Base
@@ -9,10 +10,14 @@ from datetime import datetime
 
 # Use PostgreSQL for tests if available, otherwise fallback to SQLite
 # Use main database for tests (we'll clean up after)
-TEST_DATABASE_URL = os.getenv(
-    "TEST_DATABASE_URL",
-    "postgresql+asyncpg://support_user:support_pass@localhost:5432/ai_support"
-)
+# In Docker, use postgres service name; locally use localhost
+DOCKER_ENV = os.getenv("DOCKER_ENV", "false").lower() == "true"
+if DOCKER_ENV:
+    DEFAULT_TEST_DB = "postgresql+asyncpg://support_user:support_pass@postgres:5432/ai_support"
+else:
+    DEFAULT_TEST_DB = "postgresql+asyncpg://support_user:support_pass@localhost:5432/ai_support"
+
+TEST_DATABASE_URL = os.getenv("TEST_DATABASE_URL", DEFAULT_TEST_DB)
 
 @pytest.fixture
 async def test_db() -> AsyncGenerator:
@@ -28,7 +33,8 @@ async def test_db() -> AsyncGenerator:
             
             # Test connection first
             async with engine.connect() as conn:
-                await conn.execute("SELECT 1")
+                await conn.execute(text("SELECT 1"))
+                await conn.commit()
             
             # Create tables
             async with engine.begin() as conn:
@@ -78,6 +84,18 @@ async def test_db() -> AsyncGenerator:
         await session.close()
     
     await engine.dispose()
+
+@pytest.fixture
+async def async_session(test_db):
+    """Async session fixture"""
+    yield test_db
+
+
+@pytest.fixture
+def test_client_id():
+    """Test client ID"""
+    return "test_client_123"
+
 
 @pytest.fixture
 def client():

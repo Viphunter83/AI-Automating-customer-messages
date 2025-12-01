@@ -49,6 +49,8 @@ async def create_message(
     session: AsyncSession = Depends(get_session),
     x_webhook_url: Optional[str] = Header(None, alias="X-Webhook-URL"),
     x_idempotency_key: Optional[str] = Header(None, alias="X-Idempotency-Key"),
+    x_platform: Optional[str] = Header(None, alias="X-Platform"),
+    x_chat_id: Optional[str] = Header(None, alias="X-Chat-ID"),
 ):
     """
     Create a new message with rate limiting per client_id.
@@ -68,6 +70,8 @@ async def create_message(
     Headers:
         X-Webhook-URL: Optional URL to send response back to
         X-Idempotency-Key: Optional idempotency key to prevent duplicate processing
+        X-Platform: Optional platform identifier (e.g., "telegram")
+        X-Chat-ID: Optional platform-specific chat ID (passed to webhook)
     """
     request_id = get_request_id(request)
     
@@ -80,7 +84,11 @@ async def create_message(
         # Initialize services
         processing_service = MessageProcessingService(session)
         response_service = MessageResponseService(session)
-        delivery_service = MessageDeliveryService(webhook_url=x_webhook_url)
+        delivery_service = MessageDeliveryService(
+            webhook_url=x_webhook_url,
+            platform=x_platform,
+            chat_id=x_chat_id,
+        )
 
         # ============ STEP 1: Rate limiting per client_id ============
         if settings.rate_limit_enabled:
@@ -156,12 +164,23 @@ async def create_message(
             }
 
         # ============ STEP 3: Process message (within transaction) ============
+        mass_outage_detected = False
         try:
             # Process message (text cleaning, classification, escalation)
             # Skip duplicate check since we already checked above
             processed_message = await processing_service.process_message(
-                message_data.client_id, message_data.content, skip_duplicate_check=True
+                message_data.client_id, 
+                message_data.content, 
+                skip_duplicate_check=True,
+                webhook_url=x_webhook_url,
+                platform=x_platform,
+                chat_id=x_chat_id,
             )
+            
+            # Check if mass outage was detected
+            if processed_message.scenario == "MASS_OUTAGE":
+                mass_outage_detected = True
+                logger.warning(f"🚨 Mass outage detected for client {message_data.client_id}")
 
             # Create response
             message_response = await response_service.create_response(
@@ -199,6 +218,30 @@ async def create_message(
             processed_message,
             message_response,
         )
+        
+        # ============ STEP 5: Handle mass outage notification ============
+        # If mass outage detected, send notifications to all active clients
+        if mass_outage_detected:
+            async def send_mass_notification():
+                try:
+                    from app.services.mass_notification_service import MassNotificationService
+                    from app.database import async_session_maker
+                    
+                    async with async_session_maker() as notification_session:
+                        notification_service = MassNotificationService(notification_session)
+                        result = await notification_service.send_mass_outage_notification()
+                        logger.info(
+                            f"📢 Mass outage notification sent: {result.get('sent')} clients notified, "
+                            f"{result.get('failed')} failed"
+                        )
+                except Exception as e:
+                    logger.error(
+                        f"❌ Error sending mass outage notifications: {type(e).__name__}: {str(e)}",
+                        exc_info=True,
+                    )
+            
+            background_tasks.add_task(send_mass_notification)
+            logger.info("📢 Scheduled mass outage notification to all active clients")
 
         # Prepare response
         classification_data = None

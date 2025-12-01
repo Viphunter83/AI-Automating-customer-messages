@@ -9,9 +9,10 @@ import clsx from 'clsx'
 interface ChatHistoryProps {
   messages: MessageWithClassification[]
   isLoading?: boolean
+  clientId?: string
 }
 
-export function ChatHistory({ messages, isLoading }: ChatHistoryProps) {
+export function ChatHistory({ messages, isLoading, clientId }: ChatHistoryProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   
   useEffect(() => {
@@ -64,6 +65,11 @@ export function ChatHistory({ messages, isLoading }: ChatHistoryProps) {
                 {getMessageLabel(msg.message_type)}
               </Badge>
               {msg.priority && <PriorityBadge priority={msg.priority} size="sm" />}
+              {clientId && (
+                <span className="text-xs text-gray-400 font-mono">
+                  {clientId}
+                </span>
+              )}
             </div>
             <span className="text-xs text-gray-500">
               {new Date(msg.created_at).toLocaleTimeString()}

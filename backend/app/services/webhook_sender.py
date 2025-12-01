@@ -13,13 +13,20 @@ logger = logging.getLogger(__name__)
 class WebhookSender:
     """Send responses back to the chat platform via webhook"""
 
-    def __init__(self, platform_webhook_url: Optional[str] = None):
+    def __init__(
+        self,
+        platform_webhook_url: Optional[str] = None,
+        platform: Optional[str] = None,
+        chat_id: Optional[str] = None,
+    ):
         """
         Initialize WebhookSender
 
         Args:
             platform_webhook_url: URL where to send responses
                                   (should be provided by the customer)
+            platform: Platform identifier (e.g., "telegram")
+            chat_id: Platform-specific chat ID (for headers)
         """
         settings = get_settings()
         self.platform_webhook_url = (
@@ -27,6 +34,8 @@ class WebhookSender:
             or getattr(settings, "platform_webhook_url", None)
             or "http://localhost:9000/webhook/response"
         )
+        self.platform = platform
+        self.chat_id = chat_id
         self.timeout = 30
 
     @retry(
@@ -66,10 +75,18 @@ class WebhookSender:
                 "source": "ai_bot",
             }
 
+            # Prepare headers (include platform-specific headers)
+            headers = {}
+            if self.chat_id:
+                headers["X-Chat-ID"] = self.chat_id
+            if self.platform:
+                headers["X-Platform"] = self.platform
+
             async with httpx.AsyncClient() as client:
                 response = await client.post(
                     self.platform_webhook_url,
                     json=payload,
+                    headers=headers,
                     timeout=self.timeout,
                 )
 

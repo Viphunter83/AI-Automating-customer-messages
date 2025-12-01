@@ -81,28 +81,39 @@ class SearchService:
         count_result = await self.session.execute(count_query)
         total = count_result.scalar() or 0
 
-        # Get results
+        # Get results with eager loading of classifications
+        query_obj = query_obj.options(selectinload(Message.classifications))
         query_obj = query_obj.order_by(desc(Message.created_at))
         query_obj = query_obj.limit(limit).offset(offset)
 
         result = await self.session.execute(query_obj)
         messages = result.scalars().unique().all()
 
+        # Build response with classification data
+        messages_data = []
+        for m in messages:
+            # Get first classification if exists
+            classification = m.classifications[0] if m.classifications else None
+            messages_data.append({
+                "id": str(m.id),
+                "client_id": m.client_id,
+                "content": m.content,
+                "message_type": str(m.message_type.value),
+                "created_at": m.created_at.isoformat(),
+                "priority": str(m.priority.value) if m.priority else None,
+                "classification": {
+                    "scenario": str(classification.detected_scenario.value) if classification else None,
+                    "confidence": float(classification.confidence) if classification else None,
+                    "reasoning": classification.reasoning if classification else None,
+                } if classification else None,
+            })
+
         return {
             "total": total,
             "limit": limit,
             "offset": offset,
             "count": len(messages),
-            "messages": [
-                {
-                    "id": str(m.id),
-                    "client_id": m.client_id,
-                    "content": m.content,
-                    "message_type": str(m.message_type.value),
-                    "created_at": m.created_at.isoformat(),
-                }
-                for m in messages
-            ],
+            "messages": messages_data,
         }
 
     async def search_dialogs(

@@ -251,6 +251,9 @@ class ChatSessionResponse(BaseModel):
     farewell_sent_at: Optional[datetime] = None
     created_at: datetime
     updated_at: datetime
+    message_count: Optional[int] = None
+    last_message_preview: Optional[str] = None
+    last_message_at: Optional[datetime] = None
 
     class Config:
         from_attributes = True

@@ -3,7 +3,7 @@ from datetime import datetime, timedelta
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Query, status
-from sqlalchemy import and_, func, select
+from sqlalchemy import and_, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_session
@@ -45,6 +45,40 @@ async def list_dialogs(
     result = await session.execute(query)
     sessions = result.scalars().all()
 
+    # Get client IDs for batch loading messages
+    client_ids = [s.client_id for s in sessions]
+    
+    # Batch load message counts and last messages
+    message_counts = {}
+    last_messages = {}
+    
+    if client_ids:
+        # Get message counts
+        count_result = await session.execute(
+            select(Message.client_id, func.count(Message.id).label("count"))
+            .where(Message.client_id.in_(client_ids))
+            .group_by(Message.client_id)
+        )
+        for row in count_result.all():
+            message_counts[row.client_id] = row.count
+        
+        # Get last messages for each client
+        # Use a simpler approach: get last message per client
+        for client_id in client_ids:
+            last_msg_result = await session.execute(
+                select(Message)
+                .where(Message.client_id == client_id)
+                .order_by(desc(Message.created_at))
+                .limit(1)
+            )
+            last_msg = last_msg_result.scalar_one_or_none()
+            if last_msg:
+                preview = last_msg.content[:100] + "..." if len(last_msg.content) > 100 else last_msg.content
+                last_messages[client_id] = {
+                    "preview": preview,
+                    "created_at": last_msg.created_at
+                }
+
     # Convert DialogStatus enum to DialogStatusEnum for Pydantic
     return [
         ChatSessionResponse(
@@ -56,6 +90,9 @@ async def list_dialogs(
             farewell_sent_at=s.farewell_sent_at,
             created_at=s.created_at,
             updated_at=s.updated_at,
+            message_count=message_counts.get(s.client_id, 0),
+            last_message_preview=last_messages.get(s.client_id, {}).get("preview"),
+            last_message_at=last_messages.get(s.client_id, {}).get("created_at"),
         )
         for s in sessions
     ]

@@ -45,8 +45,13 @@ services:
       DATABASE_URL: postgresql+asyncpg://support_user:support_pass@postgres:5432/ai_support
       # Override REDIS_URL for Docker network (use redis service name instead of localhost)
       REDIS_URL: redis://redis:6379/0
+      # Telegram Bot settings
+      TELEGRAM_BOT_TOKEN: "8134362586:AAGCy3Q3tGgM8j1jz1tn3ClPRcidQCPcDSI"
+      TELEGRAM_ENABLED: "true"
+      TELEGRAM_WEBHOOK_URL: ""
+      TELEGRAM_WEBHOOK_SECRET: ""
       # All other variables (OPENAI_API_KEY, SECRET_KEY, etc.) are loaded from backend/.env
-      # No need to duplicate them here - env_file handles them automatically
+      # via env_file
     depends_on:
       postgres:
         condition: service_healthy
@@ -66,12 +71,15 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8000
+      NODE_ENV: development
+      # Отключить Turbopack для исправления проблемы с Tailwind CSS
+      NEXT_PRIVATE_STANDALONE: "false"
     depends_on:
       - backend
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: npm run dev
+    command: sh -c "npm run build && npm start"
 
 volumes:
   postgres_data:

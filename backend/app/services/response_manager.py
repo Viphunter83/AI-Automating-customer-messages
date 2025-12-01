@@ -26,33 +26,46 @@ class ResponseManager:
         logger.info("Initializing default response templates...")
 
         for scenario_name, template_data in RESPONSE_TEMPLATES.items():
-            # Check if already exists
-            result = await self.session.execute(
-                select(ResponseTemplate).where(
-                    ResponseTemplate.scenario_name == ScenarioType[scenario_name]
-                )
-            )
-            existing = result.scalar_one_or_none()
+            try:
+                # Check if scenario exists in ScenarioType enum
+                if scenario_name not in ScenarioType.__members__:
+                    logger.warning(f"Scenario {scenario_name} not found in ScenarioType enum, skipping")
+                    continue
 
-            if existing:
-                logger.debug(f"Template {scenario_name} already exists, skipping")
+                # Check if already exists
+                result = await self.session.execute(
+                    select(ResponseTemplate).where(
+                        ResponseTemplate.scenario_name == ScenarioType[scenario_name]
+                    )
+                )
+                existing = result.scalar_one_or_none()
+
+                if existing:
+                    logger.debug(f"Template {scenario_name} already exists, skipping")
+                    continue
+
+                # Create new template
+                template = ResponseTemplate(
+                    id=uuid.uuid4(),
+                    scenario_name=ScenarioType[scenario_name],
+                    template_text=template_data["text"],
+                    requires_params=template_data.get("requires_params", {}),
+                    version=1,
+                    is_active=True,
+                )
+
+                self.session.add(template)
+                logger.info(f"Added template: {scenario_name}")
+            except (KeyError, ValueError) as e:
+                logger.error(f"Error initializing template for {scenario_name}: {e}")
                 continue
 
-            # Create new template
-            template = ResponseTemplate(
-                id=uuid.uuid4(),
-                scenario_name=ScenarioType[scenario_name],
-                template_text=template_data["text"],
-                requires_params=template_data.get("requires_params", {}),
-                version=1,
-                is_active=True,
-            )
-
-            self.session.add(template)
-            logger.info(f"Added template: {scenario_name}")
-
-        await self.session.commit()
-        logger.info("Default templates initialized")
+        try:
+            await self.session.commit()
+            logger.info("Default templates initialized")
+        except Exception as e:
+            logger.error(f"Error committing templates: {e}")
+            await self.session.rollback()
 
     async def get_response_template(self, scenario: str) -> Optional[ResponseTemplate]:
         """

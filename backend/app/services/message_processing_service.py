@@ -120,7 +120,13 @@ class MessageProcessingService:
         return len(existing_messages) == 0
 
     async def save_original_message(
-        self, client_id: str, content: str, is_first_message: bool
+        self, 
+        client_id: str, 
+        content: str, 
+        is_first_message: bool,
+        webhook_url: Optional[str] = None,
+        platform: Optional[str] = None,
+        chat_id: Optional[str] = None,
     ) -> Message:
         """Save original message to database"""
         message = Message(
@@ -134,8 +140,13 @@ class MessageProcessingService:
         self.session.add(message)
         await self.session.flush()
         
-        # Update dialog activity
-        await self.dialog_service.update_activity(client_id)
+        # Update dialog activity and save webhook info
+        await self.dialog_service.update_activity(
+            client_id,
+            webhook_url=webhook_url,
+            platform=platform,
+            chat_id=chat_id,
+        )
         
         logger.debug(
             f"✅ Saved original message: {message.id} "
@@ -241,6 +252,22 @@ class MessageProcessingService:
             "CROSS_EXTENSION",
             "UNKNOWN",
         ]
+        
+        # Check if message contains media (photo/document) - requires escalation per TZ
+        has_media = (
+            "[ФОТО получено" in content
+            or "[ДОКУМЕНТ получен" in content
+            or "[ВИДЕО получено" in content
+        )
+        
+        # Escalate if media received (especially for REVIEW_BONUS and ABSENCE_REQUEST)
+        if has_media:
+            logger.info(f"Media file detected in message, escalating to operator")
+            # Force escalation for media messages
+            escalation_result["should_escalate"] = True
+            escalation_result["level"] = "high"
+            escalation_result["reasons"] = escalation_result.get("reasons", []) + ["media_received"]
+        
         requires_escalation = (
             scenario in escalation_scenarios
             or (
@@ -281,7 +308,13 @@ class MessageProcessingService:
         }
 
     async def process_message(
-        self, client_id: str, content: str, skip_duplicate_check: bool = False
+        self, 
+        client_id: str, 
+        content: str, 
+        skip_duplicate_check: bool = False,
+        webhook_url: Optional[str] = None,
+        platform: Optional[str] = None,
+        chat_id: Optional[str] = None,
     ) -> ProcessedMessage:
         """
         Main method to process a message

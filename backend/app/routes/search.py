@@ -1,6 +1,11 @@
+import csv
+import json
 import logging
+from datetime import datetime
+from io import StringIO
+from typing import Dict
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Query, status
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -97,3 +102,58 @@ async def export_report(
     service = ExportService(session)
     report = await service.export_analytics_report(hours=hours)
     return report
+
+
+@router.post("/export/results")
+async def export_search_results(
+    search_params: Dict = Body(...), session: AsyncSession = Depends(get_session)
+):
+    """Export search results as CSV or JSON"""
+    service = SearchService(session)
+    result = await service.search_messages(
+        query=search_params.get("q", ""),
+        client_id=search_params.get("client_id"),
+        scenario=search_params.get("scenario"),
+        min_confidence=search_params.get("min_confidence", 0.0),
+        limit=search_params.get("limit", 1000),  # Large limit for export
+        offset=0,
+    )
+    
+    format_type = search_params.get("format", "csv")
+    
+    if format_type == "csv":
+        output = StringIO()
+        writer = csv.writer(output)
+        writer.writerow([
+            "ID", "Client ID", "Timestamp", "Type", "Content", 
+            "Scenario", "Confidence", "Reasoning", "Priority"
+        ])
+        
+        for msg in result["messages"]:
+            classification = msg.get("classification", {})
+            writer.writerow([
+                msg["id"],
+                msg["client_id"],
+                msg["created_at"],
+                msg["message_type"],
+                msg["content"],
+                classification.get("scenario") or "N/A",
+                f"{classification.get('confidence', 0) * 100:.2f}%" if classification.get("confidence") else "N/A",
+                classification.get("reasoning") or "",
+                msg.get("priority") or "N/A",
+            ])
+        
+        csv_data = output.getvalue()
+        return StreamingResponse(
+            iter([csv_data]),
+            media_type="text/csv",
+            headers={"Content-Disposition": f"attachment; filename=search_results_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"},
+        )
+    else:
+        return {
+            "export_date": datetime.utcnow().isoformat(),
+            "search_params": search_params,
+            "total": result["total"],
+            "count": result["count"],
+            "messages": result["messages"],
+        }

@@ -122,7 +122,13 @@ export const createWebSocketUrl = () => {
 // Dialog management API
 export const dialogsApi = {
   list: (status?: string) => 
-    api.get(`/api/dialogs${status ? `?status=${status}` : ''}`),
+    api.get(`/api/dialogs${status ? `?status=${status}` : ''}`).then(res => {
+      // Ensure we always return data in consistent format
+      if (Array.isArray(res.data)) {
+        return res
+      }
+      return { ...res, data: res.data?.dialogs || res.data || [] }
+    }),
   
   get: (clientId: string) => 
     api.get(`/api/dialogs/${clientId}`),
@@ -135,4 +141,36 @@ export const dialogsApi = {
   
   getStats: (clientId: string) => 
     api.get(`/api/dialogs/${clientId}/stats`),
+};
+
+// Search API
+export const searchAPI = {
+  searchMessages: (params: {
+    q?: string;
+    client_id?: string;
+    scenario?: string;
+    min_confidence?: number;
+    offset?: number;
+    limit?: number;
+  }) => api.get("/api/search/messages", { params }),
+  
+  searchDialogs: (params: {
+    min_messages?: number;
+    has_feedback?: boolean;
+    hours?: number;
+    limit?: number;
+  }) => api.get("/api/search/dialogs", { params }),
+  
+  autocompleteClients: (prefix: string, limit?: number) =>
+    api.get("/api/search/clients/autocomplete", { params: { prefix, limit } }),
+  
+  exportSearchResults: (searchParams: any, format: 'csv' | 'json') =>
+    api.post("/api/search/export/results", { ...searchParams, format }, {
+      responseType: format === 'csv' ? 'blob' : 'json',
+    }),
+  
+  exportDialog: (clientId: string, format: 'csv' | 'json') =>
+    api.get(`/api/search/export/dialog/${clientId}.${format}`, {
+      responseType: format === 'csv' ? 'blob' : 'json',
+    }),
 };

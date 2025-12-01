@@ -2,7 +2,7 @@ import json
 import logging
 import os
 from functools import lru_cache
-from typing import List, Union
+from typing import List, Optional, Union
 
 from pydantic import ValidationError, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -40,6 +40,12 @@ class Settings(BaseSettings):
 
     # Redis (optional, falls back to in-memory cache if not available)
     redis_url: str = "redis://localhost:6379/0"
+
+    # Telegram Bot (optional, for testing before CRM integration)
+    telegram_bot_token: Optional[str] = None
+    telegram_enabled: bool = False
+    telegram_webhook_url: Optional[str] = None
+    telegram_webhook_secret: Optional[str] = None
 
     # Rate Limiting
     rate_limit_enabled: bool = True

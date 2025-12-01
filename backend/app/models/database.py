@@ -174,6 +174,10 @@ class Reminder(Base):
     scheduled_at = Column(DateTime, nullable=False, index=True)
     sent_at = Column(DateTime, nullable=True)
     is_cancelled = Column(Boolean, default=False, nullable=False)
+    # Retry tracking for failed webhook deliveries
+    failed_attempts = Column(Integer, default=0, nullable=False)
+    last_failed_at = Column(DateTime, nullable=True)
+    max_retry_attempts = Column(Integer, default=3, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
@@ -199,6 +203,10 @@ class ChatSession(Base):
     )
     closed_at = Column(DateTime, nullable=True)
     farewell_sent_at = Column(DateTime, nullable=True)
+    # Webhook configuration for sending responses back to platform
+    webhook_url = Column(String(500), nullable=True)
+    platform = Column(String(50), nullable=True, index=True)  # "telegram", "crm", etc.
+    chat_id = Column(String(255), nullable=True)  # Platform-specific chat ID
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(
         DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False

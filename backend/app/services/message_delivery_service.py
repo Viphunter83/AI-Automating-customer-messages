@@ -35,11 +35,23 @@ class DeliveryResult:
 class MessageDeliveryService:
     """Service for delivering messages via webhooks and WebSocket"""
 
-    def __init__(self, webhook_url: Optional[str] = None):
+    def __init__(
+        self,
+        webhook_url: Optional[str] = None,
+        platform: Optional[str] = None,
+        chat_id: Optional[str] = None,
+    ):
         self.webhook_url = webhook_url
+        self.platform = platform
+        self.chat_id = chat_id
         self.webhook_sender = WebhookSender(
-            platform_webhook_url=webhook_url
-        ) if webhook_url else WebhookSender()
+            platform_webhook_url=webhook_url,
+            platform=platform,
+            chat_id=chat_id,
+        ) if webhook_url else WebhookSender(
+            platform=platform,
+            chat_id=chat_id,
+        )
 
     def prepare_webhook_data(
         self,

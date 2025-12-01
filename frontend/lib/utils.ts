@@ -1,16 +1,12 @@
-import { type ClassValue, clsx } from "clsx";
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
 
 export function cn(...inputs: ClassValue[]) {
-  return clsx(...inputs)
-}
-
-export function formatPercent(value: number): string {
-  return `${(value * 100).toFixed(1)}%`
+  return twMerge(clsx(inputs))
 }
 
 export function formatDate(date: string | Date): string {
   const d = typeof date === 'string' ? new Date(date) : date
-  // Use toLocaleString() instead of toLocaleDateString() to properly format both date and time
   return d.toLocaleString('ru-RU', {
     year: 'numeric',
     month: 'short',
@@ -18,10 +14,4 @@ export function formatDate(date: string | Date): string {
     hour: '2-digit',
     minute: '2-digit'
   })
-}
-
-export function formatTime(ms: number): string {
-  if (ms < 1000) return `${ms}ms`
-  if (ms < 60000) return `${(ms / 1000).toFixed(1)}s`
-  return `${(ms / 60000).toFixed(1)}m`
 }

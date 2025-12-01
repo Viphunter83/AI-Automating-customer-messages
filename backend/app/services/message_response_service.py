@@ -47,37 +47,105 @@ class MessageResponseService:
         """
         scenario = processed_message.scenario
         requires_escalation = processed_message.requires_escalation
+        is_first_message = processed_message.is_first_message
         scenario_msg = None  # Initialize to avoid NameError
 
-        # For escalated scenarios, send "escalated" message to client
-        # Scenario-specific response is saved for operator context
-        if requires_escalation:
-            # Send escalation notification to client
-            response_msg, response_text = await self.response_manager.create_bot_response(
-                scenario="ESCALATED",
+        # If this is the first message, always send greeting first (per TZ requirement)
+        greeting_msg = None
+        if is_first_message and scenario != "GREETING":
+            # Send automatic greeting for first-time clients
+            greeting_msg, greeting_text = await self.response_manager.create_bot_response(
+                scenario="GREETING",
                 client_id=client_id,
                 original_message_id=str(processed_message.original_message.id),
                 params={},
-                message_type=MessageType.BOT_ESCALATED,
+                message_type=MessageType.BOT_AUTO,
             )
+            if greeting_msg:
+                logger.info(f"✅ Sent automatic greeting for first-time client {client_id}")
 
-            # Also create scenario-specific response for operator context
-            scenario_msg, _ = await self.response_manager.create_bot_response(
-                scenario=scenario,
-                client_id=client_id,
-                original_message_id=str(processed_message.original_message.id),
-                params={
-                    "referral_link": f"https://example.com/ref/{client_id}"
-                },
-                message_type=MessageType.BOT_ESCALATED,
-            )
+        # For escalated scenarios, send appropriate response
+        # Special handling for TECH_SUPPORT_BASIC: send scenario template first (with screenshot request)
+        # Other scenarios: send escalation notification
+        if requires_escalation:
+            # For TECH_SUPPORT_BASIC, send scenario template first (includes screenshot request)
+            # This follows TZ requirement: first send instructions + screenshot request, then escalate
+            if scenario == "TECH_SUPPORT_BASIC":
+                # Send TECH_SUPPORT_BASIC template (includes screenshot request)
+                response_msg, response_text = await self.response_manager.create_bot_response(
+                    scenario="TECH_SUPPORT_BASIC",
+                    client_id=client_id,
+                    original_message_id=str(processed_message.original_message.id),
+                    params={},
+                    message_type=MessageType.BOT_ESCALATED,  # Mark as escalated for operator notification
+                )
+                
+                # If first message, combine greeting with tech support response
+                if is_first_message and not greeting_msg:
+                    greeting_msg, greeting_text = await self.response_manager.create_bot_response(
+                        scenario="GREETING",
+                        client_id=client_id,
+                        original_message_id=str(processed_message.original_message.id),
+                        params={},
+                        message_type=MessageType.BOT_AUTO,
+                    )
+                
+                if is_first_message and greeting_msg:
+                    # Combine greeting with tech support response
+                    combined_text = f"{greeting_text}\n\n{response_text}"
+                    response_msg.content = combined_text
+                    response_text = combined_text
+                    logger.info(f"✅ Combined greeting with TECH_SUPPORT_BASIC response for first-time client")
+                
+                logger.info(f"📤 Created TECH_SUPPORT_BASIC response (with screenshot request) for client {client_id}")
+            else:
+                # For other escalated scenarios, send escalation notification
+                response_msg, response_text = await self.response_manager.create_bot_response(
+                    scenario="ESCALATED",
+                    client_id=client_id,
+                    original_message_id=str(processed_message.original_message.id),
+                    params={},
+                    message_type=MessageType.BOT_ESCALATED,
+                )
+                
+                # If first message, combine greeting with escalation message
+                if is_first_message and not greeting_msg:
+                    greeting_msg, greeting_text = await self.response_manager.create_bot_response(
+                        scenario="GREETING",
+                        client_id=client_id,
+                        original_message_id=str(processed_message.original_message.id),
+                        params={},
+                        message_type=MessageType.BOT_AUTO,
+                    )
+                
+                if is_first_message and greeting_msg:
+                    # Combine greeting with escalation message
+                    combined_text = f"{greeting_msg.content}\n\n{response_text}"
+                    response_msg.content = combined_text
+                    response_text = combined_text
+                    logger.info(f"✅ Combined greeting with escalation response for first-time client")
 
-            if scenario_msg:
-                logger.debug(
-                    f"Created scenario response for operator context: {scenario_msg.id}"
+                # Note: scenario_msg is created for operator context only (stored in DB)
+                # It should NOT be sent to client - only ESCALATED message is sent
+                # The scenario-specific template is used for operator reference in the dashboard
+                logger.info(f"📤 Created escalation response for client {client_id}")
+
+                # Create scenario-specific response for operator context (NOT sent to client)
+                # This is stored in DB for operator reference but not delivered via webhook
+                scenario_msg, _ = await self.response_manager.create_bot_response(
+                    scenario=scenario,
+                    client_id=client_id,
+                    original_message_id=str(processed_message.original_message.id),
+                    params={
+                        "referral_link": f"https://example.com/ref/{client_id}"
+                    },
+                    message_type=MessageType.BOT_ESCALATED,
                 )
 
-            logger.info(f"📤 Created escalation response for client {client_id}")
+                if scenario_msg:
+                    logger.debug(
+                        f"Created scenario response for operator context only (not sent to client): {scenario_msg.id}"
+                    )
         else:
             # Normal auto response
             response_msg, response_text = await self.response_manager.create_bot_response(
@@ -89,6 +157,15 @@ class MessageResponseService:
                 },
                 message_type=MessageType.BOT_AUTO,
             )
+            
+            # If this is first message and scenario is not GREETING, combine greeting with response
+            if is_first_message and greeting_msg and scenario != "GREETING":
+                # Combine greeting text with scenario response text
+                combined_text = f"{greeting_msg.content}\n\n{response_text}"
+                # Update response message content
+                response_msg.content = combined_text
+                response_text = combined_text
+                logger.info(f"✅ Combined greeting with {scenario} response for first-time client")
 
         if not response_msg:
             logger.error("❌ Failed to create response, using fallback")
@@ -137,8 +214,15 @@ class MessageResponseService:
             message_id=message_id,
             reminder_type=ReminderType.REMINDER_30MIN,
         )
+        
+        # Add reminder for next day (per TZ requirement)
+        await self.reminder_service.create_reminder(
+            client_id=client_id,
+            message_id=message_id,
+            reminder_type=ReminderType.REMINDER_1DAY,
+        )
 
-        logger.debug(f"Created reminders for message {message_id}")
+        logger.debug(f"Created reminders (15min, 30min, 1day) for message {message_id}")
 
     async def cancel_pending_reminders(
         self, client_id: str, after_message_id: str

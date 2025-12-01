@@ -5,11 +5,14 @@ import { DialogStatus } from '@/lib/types'
 import clsx from 'clsx'
 
 interface DialogStatusBadgeProps {
-  status: DialogStatus
+  status: DialogStatus | string
   className?: string
 }
 
 export function DialogStatusBadge({ status, className }: DialogStatusBadgeProps) {
+  // Normalize status to DialogStatus type
+  const normalizedStatus = (typeof status === 'string' ? status.toLowerCase() : status) as DialogStatus
+  
   const statusConfig: Record<DialogStatus, { label: string; className: string; icon: string }> = {
     open: {
       label: 'Открыт',
@@ -28,7 +31,7 @@ export function DialogStatusBadge({ status, className }: DialogStatusBadgeProps)
     }
   }
 
-  const config = statusConfig[status] || statusConfig.open
+  const config = statusConfig[normalizedStatus] || statusConfig.open
 
   return (
     <Badge 

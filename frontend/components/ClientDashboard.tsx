@@ -93,6 +93,46 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
               </div>
             </div>
             <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const { searchAPI } = await import('@/lib/api')
+                    const response = await searchAPI.exportDialog(clientId, 'csv')
+                    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
+                    const link = document.createElement('a')
+                    link.href = URL.createObjectURL(blob)
+                    link.download = `dialog_${clientId}_${new Date().toISOString().split('T')[0]}.csv`
+                    link.click()
+                  } catch (error) {
+                    console.error('Export error:', error)
+                    alert('Ошибка при экспорте диалога')
+                  }
+                }}
+              >
+                📥 CSV
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={async () => {
+                  try {
+                    const { searchAPI } = await import('@/lib/api')
+                    const response = await searchAPI.exportDialog(clientId, 'json')
+                    const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' })
+                    const link = document.createElement('a')
+                    link.href = URL.createObjectURL(blob)
+                    link.download = `dialog_${clientId}_${new Date().toISOString().split('T')[0]}.json`
+                    link.click()
+                  } catch (error) {
+                    console.error('Export error:', error)
+                    alert('Ошибка при экспорте диалога')
+                  }
+                }}
+              >
+                📥 JSON
+              </Button>
               {dialog?.status === 'open' && (
                 <Button
                   variant="outline"
@@ -120,6 +160,7 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
         <ChatHistory
           messages={sortedMessages}
           isLoading={isLoading}
+          clientId={clientId}
         />
       </div>
       
