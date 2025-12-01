@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
 import { mockMessages, mockClassifications, mockClientIds } from '@/lib/mockData'
@@ -11,9 +11,31 @@ export default function DemoPage() {
   const [loading, setLoading] = useState<string | null>(null)
   const [results, setResults] = useState<Record<string, any>>({})
   const queryClient = useQueryClient()
+  // Track the currently loading message ID to prevent race conditions
+  const currentLoadingRef = useRef<string | null>(null)
+  // Track active timers to clean them up
+  const timerRefs = useRef<Map<string, NodeJS.Timeout>>(new Map())
+
+  // Cleanup timers on unmount
+  useEffect(() => {
+    return () => {
+      timerRefs.current.forEach(timer => clearTimeout(timer))
+      timerRefs.current.clear()
+    }
+  }, [])
 
   const sendMockMessage = async (message: typeof mockMessages[0]) => {
+    // Clear any existing timer for this message
+    const existingTimer = timerRefs.current.get(message.id)
+    if (existingTimer) {
+      clearTimeout(existingTimer)
+      timerRefs.current.delete(message.id)
+    }
+
+    // Set loading state and track it
+    currentLoadingRef.current = message.id
     setLoading(message.id)
+    
     try {
       const response = await api.post('/api/messages/', {
         client_id: message.client_id,
@@ -25,9 +47,17 @@ export default function DemoPage() {
       queryClient.invalidateQueries({ queryKey: ['messages', message.client_id] })
       queryClient.invalidateQueries({ queryKey: ['classifications', message.client_id] })
       
-      setTimeout(() => {
-        setLoading(null)
+      // Only clear loading state if this is still the current loading message
+      const timer = setTimeout(() => {
+        // Check if this message is still the one being loaded
+        if (currentLoadingRef.current === message.id) {
+          setLoading(null)
+          currentLoadingRef.current = null
+        }
+        timerRefs.current.delete(message.id)
       }, 2000)
+      
+      timerRefs.current.set(message.id, timer)
     } catch (error: any) {
       setResults(prev => ({ 
         ...prev, 
@@ -36,7 +66,19 @@ export default function DemoPage() {
           error: error.response?.data?.detail || error.message 
         } 
       }))
-      setLoading(null)
+      
+      // Only clear loading state if this is still the current loading message
+      if (currentLoadingRef.current === message.id) {
+        setLoading(null)
+        currentLoadingRef.current = null
+      }
+      
+      // Clear timer if exists
+      const existingTimer = timerRefs.current.get(message.id)
+      if (existingTimer) {
+        clearTimeout(existingTimer)
+        timerRefs.current.delete(message.id)
+      }
     }
   }
 
@@ -64,11 +106,13 @@ export default function DemoPage() {
                     </p>
                   </div>
                   <Button
-                    onClick={() => {
+                    onClick={async () => {
                       // Send all messages for this client sequentially
-                      clientMessages.forEach((msg, idx) => {
-                        setTimeout(() => sendMockMessage(msg), idx * 2000)
-                      })
+                      for (const msg of clientMessages) {
+                        await sendMockMessage(msg)
+                        // Wait 2 seconds between messages to avoid rate limiting
+                        await new Promise(resolve => setTimeout(resolve, 2000))
+                      }
                     }}
                     disabled={loading !== null}
                     className="bg-blue-600 hover:bg-blue-700"
