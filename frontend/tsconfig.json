@@ -18,23 +18,24 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "moduleResolution": "bundler",
+    "moduleResolution": "node",
     "baseUrl": ".",
+    "rootDir": ".",
     "paths": {
       "@/lib/*": [
-        "./lib/*"
+        "lib/*"
       ],
       "@/components/*": [
-        "./components/*"
+        "components/*"
       ],
       "@/hooks/*": [
-        "./hooks/*"
+        "hooks/*"
       ],
       "@/app/*": [
-        "./app/*"
+        "app/*"
       ],
       "@/*": [
-        "./*"
+        "*"
       ]
     },
     "allowJs": true,
