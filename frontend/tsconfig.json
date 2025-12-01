@@ -26,13 +26,13 @@
         "./lib/*"
       ],
       "@/lib/types": [
-        "./lib/types.ts"
+        "./lib/types"
       ],
       "@/lib/api": [
-        "./lib/api.ts"
+        "./lib/api"
       ],
       "@/lib/mockData": [
-        "./lib/mockData.ts"
+        "./lib/mockData"
       ],
       "@/components/*": [
         "./components/*"
