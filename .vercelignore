@@ -7,7 +7,14 @@ Dockerfile
 .env*
 # Exclude frontend node_modules (will be installed during build)
 frontend/node_modules/
-# Exclude backend __pycache__ and .pytest_cache
+# Exclude backend unnecessary files (keep only code needed for api/index.py)
 backend/__pycache__/
 backend/**/__pycache__/
 backend/.pytest_cache/
+backend/migrations/
+backend/tests/
+backend/scripts/
+backend/Dockerfile
+backend/pytest.ini
+backend/.env
+backend/.env.*
