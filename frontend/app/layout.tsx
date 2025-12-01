@@ -6,6 +6,14 @@ import Link from "next/link"
 export const metadata: Metadata = {
   title: "AI Customer Support",
   description: "First-line customer support powered by AI",
+  icons: {
+    icon: [
+      { url: '/favicon.ico', sizes: '32x32', type: 'image/x-icon' },
+      { url: '/favicon.svg', type: 'image/svg+xml' },
+    ],
+    shortcut: '/favicon.ico',
+    apple: '/favicon.svg',
+  },
 }
 
 export default function RootLayout({
