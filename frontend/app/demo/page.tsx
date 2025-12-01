@@ -6,6 +6,7 @@ import { Card } from '@/components/ui/card'
 import { mockMessages, mockClassifications } from '@/lib/mockData'
 import { api } from '@/lib/api'
 import { useQueryClient } from '@tanstack/react-query'
+import type { Message, Classification } from '@/lib/types'
 
 export default function DemoPage() {
   const [loading, setLoading] = useState<string | null>(null)
@@ -108,9 +109,9 @@ export default function DemoPage() {
 
       <div className="grid gap-6">
         {mockMessages
-          .filter((msg, idx, arr) => arr.findIndex(m => m.client_id === msg.client_id) === idx)
-          .map(clientMsg => {
-            const clientMessages = mockMessages.filter(m => m.client_id === clientMsg.client_id)
+          .filter((msg: Message, idx: number, arr: Message[]) => arr.findIndex((m: Message) => m.client_id === msg.client_id) === idx)
+          .map((clientMsg: Message) => {
+            const clientMessages = mockMessages.filter((m: Message) => m.client_id === clientMsg.client_id)
             return (
               <Card key={clientMsg.client_id} className="p-6">
                 <div className="flex items-center justify-between mb-4">
@@ -137,8 +138,8 @@ export default function DemoPage() {
                 </div>
 
                 <div className="space-y-3">
-                  {clientMessages.map(msg => {
-                    const classification = mockClassifications.find(c => c.message_id === msg.id)
+                  {clientMessages.map((msg: Message) => {
+                    const classification = mockClassifications.find((c: Classification) => c.message_id === msg.id)
                     const result = results[msg.id]
                     return (
                       <div
