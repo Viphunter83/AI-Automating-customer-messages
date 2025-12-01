@@ -18,19 +18,9 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "moduleResolution": "node",
-    "baseUrl": "./",
-    "rootDir": "./",
+    "moduleResolution": "bundler",
+    "baseUrl": ".",
     "paths": {
-      "@/lib/types": [
-        "./lib/types"
-      ],
-      "@/lib/api": [
-        "./lib/api"
-      ],
-      "@/lib/mockData": [
-        "./lib/mockData"
-      ],
       "@/lib/*": [
         "./lib/*"
       ],

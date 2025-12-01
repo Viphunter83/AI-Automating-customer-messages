@@ -72,4 +72,3 @@ jobs:
     - name: Type check
       working-directory: frontend
       run: npm run type-check
-
