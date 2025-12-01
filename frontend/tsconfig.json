@@ -25,15 +25,6 @@
       "@/lib/*": [
         "./lib/*"
       ],
-      "@/lib/types": [
-        "./lib/types"
-      ],
-      "@/lib/api": [
-        "./lib/api"
-      ],
-      "@/lib/mockData": [
-        "./lib/mockData"
-      ],
       "@/components/*": [
         "./components/*"
       ],
