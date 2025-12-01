@@ -23,9 +23,9 @@ export default function IntegrationGuidePage() {
         <h3 className="font-semibold mb-2">Тело запроса (Body):</h3>
         <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm">
           <div>{`{`}</div>
-          <div className="ml-4">"client_id": "client_123", <span className="text-gray-500">// Уникальный ID клиента</span></div>
-          <div className="ml-4">"content": "Текст сообщения от клиента", <span className="text-gray-500">// Текст сообщения</span></div>
-          <div className="ml-4">"timestamp": "2025-11-27T12:00:00Z" <span className="text-gray-500">// Опционально, по умолчанию текущее время</span></div>
+          <div className="ml-4">{`"client_id": "client_123",`} <span className="text-gray-500">{`// Уникальный ID клиента`}</span></div>
+          <div className="ml-4">{`"content": "Текст сообщения от клиента",`} <span className="text-gray-500">{`// Текст сообщения`}</span></div>
+          <div className="ml-4">{`"timestamp": "2025-11-27T12:00:00Z"`} <span className="text-gray-500">{`// Опционально, по умолчанию текущее время`}</span></div>
           <div>{`}`}</div>
         </div>
       </Card>
@@ -34,22 +34,22 @@ export default function IntegrationGuidePage() {
         <h2 className="text-2xl font-semibold mb-4">📥 Ответ API</h2>
         <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm">
           <div>{`{`}</div>
-          <div className="ml-4">"status": "success",</div>
-          <div className="ml-4">"original_message_id": "uuid",</div>
-          <div className="ml-4">"is_first_message": true,</div>
-          <div className="ml-4">"priority": "low",</div>
-          <div className="ml-4">"classification": {`{`}</div>
-          <div className="ml-8">"scenario": "GREETING",</div>
-          <div className="ml-8">"confidence": 0.92,</div>
-          <div className="ml-8">"reasoning": "..."</div>
-          <div className="ml-4">{`}`},</div>
-          <div className="ml-4">"response": {`{`}</div>
-          <div className="ml-8">"message_id": "uuid",</div>
-          <div className="ml-8">"text": "Автоматический ответ...",</div>
-          <div className="ml-8">"type": "bot_auto"</div>
-          <div className="ml-4">{`}`},</div>
-          <div className="ml-4">"webhook": {`{`}</div>
-          <div className="ml-8">"success": true</div>
+          <div className="ml-4">{`"status": "success",`}</div>
+          <div className="ml-4">{`"original_message_id": "uuid",`}</div>
+          <div className="ml-4">{`"is_first_message": true,`}</div>
+          <div className="ml-4">{`"priority": "low",`}</div>
+          <div className="ml-4">{`"classification": {`}</div>
+          <div className="ml-8">{`"scenario": "GREETING",`}</div>
+          <div className="ml-8">{`"confidence": 0.92,`}</div>
+          <div className="ml-8">{`"reasoning": "..."`}</div>
+          <div className="ml-4">{`},`}</div>
+          <div className="ml-4">{`"response": {`}</div>
+          <div className="ml-8">{`"message_id": "uuid",`}</div>
+          <div className="ml-8">{`"text": "Автоматический ответ...",`}</div>
+          <div className="ml-8">{`"type": "bot_auto"`}</div>
+          <div className="ml-4">{`},`}</div>
+          <div className="ml-4">{`"webhook": {`}</div>
+          <div className="ml-8">{`"success": true`}</div>
           <div className="ml-4">{`}`}</div>
           <div>{`}`}</div>
         </div>
@@ -62,14 +62,14 @@ export default function IntegrationGuidePage() {
           система автоматически отправит ответ обратно в вашу CRM систему.
         </p>
         <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm">
-          <div>POST {`{your-webhook-url}`}</div>
+          <div>{`POST {your-webhook-url}`}</div>
           <div className="mt-2">{`{`}</div>
-          <div className="ml-4">"client_id": "client_123",</div>
-          <div className="ml-4">"response_text": "Автоматический ответ...",</div>
-          <div className="ml-4">"message_id": "uuid",</div>
-          <div className="ml-4">"classification": {`{`}</div>
-          <div className="ml-8">"scenario": "GREETING",</div>
-          <div className="ml-8">"confidence": 0.92</div>
+          <div className="ml-4">{`"client_id": "client_123",`}</div>
+          <div className="ml-4">{`"response_text": "Автоматический ответ...",`}</div>
+          <div className="ml-4">{`"message_id": "uuid",`}</div>
+          <div className="ml-4">{`"classification": {`}</div>
+          <div className="ml-8">{`"scenario": "GREETING",`}</div>
+          <div className="ml-8">{`"confidence": 0.92`}</div>
           <div className="ml-4">{`}`}</div>
           <div>{`}`}</div>
         </div>

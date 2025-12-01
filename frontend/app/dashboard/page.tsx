@@ -45,7 +45,7 @@ export default function Dashboard() {
           <div className="flex flex-col items-center justify-center h-full text-gray-600">
             <p className="text-lg mb-2">Введите Client ID для начала работы</p>
             <p className="text-sm text-gray-500">
-              Или перейдите в раздел <Link href="/demo" className="text-blue-600 hover:underline">"Демо"</Link> для отправки тестовых сообщений
+              Или перейдите в раздел <Link href="/demo" className="text-blue-600 hover:underline">&quot;Демо&quot;</Link> для отправки тестовых сообщений
             </p>
           </div>
         )}

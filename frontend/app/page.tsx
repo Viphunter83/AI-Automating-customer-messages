@@ -48,7 +48,7 @@ export default function Home() {
             <h2 className="text-2xl font-semibold mb-3">🚀 Быстрый старт</h2>
             <ol className="space-y-3 text-gray-700">
               <li>
-                <strong>1. Демонстрация:</strong> Перейдите в раздел "Демо" и отправьте тестовые сообщения
+                <strong>1. Демонстрация:</strong> Перейдите в раздел &quot;Демо&quot; и отправьте тестовые сообщения
               </li>
               <li>
                 <strong>2. Панель оператора:</strong> Откройте панель оператора для просмотра диалогов
@@ -71,7 +71,7 @@ export default function Home() {
             <div>
               <h3 className="font-semibold mb-2">1. Просмотр диалогов</h3>
               <p className="text-sm">
-                В разделе "Панель инструментов" введите Client ID клиента для просмотра истории сообщений.
+                В разделе &quot;Панель инструментов&quot; введите Client ID клиента для просмотра истории сообщений.
                 Система автоматически отображает все сообщения с их классификациями.
               </p>
             </div>
@@ -116,8 +116,8 @@ export default function Home() {
             <div className="ml-4 mb-4">X-Webhook-URL: (опционально) URL для отправки ответа</div>
             <div className="text-gray-400 mb-2">Body:</div>
             <div className="ml-4">{`{`}</div>
-            <div className="ml-8">"client_id": "client_123",</div>
-            <div className="ml-8">"content": "Текст сообщения клиента"</div>
+            <div className="ml-8">&quot;client_id&quot;: &quot;client_123&quot;,</div>
+            <div className="ml-8">&quot;content&quot;: &quot;Текст сообщения клиента&quot;</div>
             <div className="ml-4">{`}`}</div>
           </div>
           <Link href="/integration-guide" className="text-blue-600 hover:underline mt-4 inline-block">

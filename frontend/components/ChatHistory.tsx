@@ -9,10 +9,9 @@ import clsx from 'clsx'
 interface ChatHistoryProps {
   messages: MessageWithClassification[]
   isLoading?: boolean
-  clientId: string
 }
 
-export function ChatHistory({ messages, isLoading, clientId }: ChatHistoryProps) {
+export function ChatHistory({ messages, isLoading }: ChatHistoryProps) {
   const scrollRef = useRef<HTMLDivElement>(null)
   
   useEffect(() => {
@@ -21,21 +20,6 @@ export function ChatHistory({ messages, isLoading, clientId }: ChatHistoryProps)
       scrollRef.current.scrollTop = scrollRef.current.scrollHeight
     }
   }, [messages])
-  
-  const getMessageColor = (type: Message['message_type']) => {
-    switch (type) {
-      case 'user':
-        return 'bg-blue-100 text-blue-900'
-      case 'bot_auto':
-        return 'bg-green-100 text-green-900'
-      case 'bot_escalated':
-        return 'bg-yellow-100 text-yellow-900'
-      case 'operator':
-        return 'bg-purple-100 text-purple-900'
-      default:
-        return 'bg-gray-100 text-gray-900'
-    }
-  }
   
   const getMessageLabel = (type: Message['message_type']) => {
     const labels = {

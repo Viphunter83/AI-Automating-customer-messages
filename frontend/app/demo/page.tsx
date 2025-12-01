@@ -3,13 +3,13 @@
 import { useState, useRef, useEffect } from 'react'
 import { Button } from '@/components/ui/button'
 import { Card } from '@/components/ui/card'
-import { mockMessages, mockClassifications, mockClientIds } from '@/lib/mockData'
+import { mockMessages, mockClassifications } from '@/lib/mockData'
 import { api } from '@/lib/api'
 import { useQueryClient } from '@tanstack/react-query'
 
 export default function DemoPage() {
   const [loading, setLoading] = useState<string | null>(null)
-  const [results, setResults] = useState<Record<string, any>>({})
+  const [results, setResults] = useState<Record<string, { success: boolean; data?: any; error?: string }>>({})
   const queryClient = useQueryClient()
   // Track the currently loading message ID to prevent race conditions
   const currentLoadingRef = useRef<string | null>(null)
@@ -18,9 +18,10 @@ export default function DemoPage() {
 
   // Cleanup timers on unmount
   useEffect(() => {
+    const timers = timerRefs.current
     return () => {
-      timerRefs.current.forEach(timer => clearTimeout(timer))
-      timerRefs.current.clear()
+      timers.forEach(timer => clearTimeout(timer))
+      timers.clear()
     }
   }, [])
 
@@ -62,12 +63,15 @@ export default function DemoPage() {
       
       // Store timer reference immediately to ensure it can be cleaned up
       timerRefs.current.set(message.id, timer)
-    } catch (error: any) {
+    } catch (error: unknown) {
+      const errorMessage = error instanceof Error 
+        ? error.message 
+        : (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Unknown error'
       setResults(prev => ({ 
         ...prev, 
         [message.id]: { 
           success: false, 
-          error: error.response?.data?.detail || error.message 
+          error: errorMessage
         } 
       }))
       

@@ -4,7 +4,6 @@ import { useState } from 'react'
 import { useFeedback } from '@/hooks/useMessages'
 import { Classification, FeedbackType, ScenarioType } from '@/lib/types'
 import { Button } from '@/components/ui/button'
-import { Badge } from '@/components/ui/badge'
 
 interface MessageFeedbackProps {
   messageId: string

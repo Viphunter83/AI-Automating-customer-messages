@@ -120,7 +120,6 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
         <ChatHistory
           messages={sortedMessages}
           isLoading={isLoading}
-          clientId={clientId}
         />
       </div>
       
