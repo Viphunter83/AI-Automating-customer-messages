@@ -84,7 +84,7 @@ jobs:
         echo "TypeScript config:"
         cat tsconfig.json | grep -A 25 "paths" || echo "paths not found"
         echo "Running type-check..."
-        npm run type-check 2>&1 | head -50
+        npm run type-check
 
   # Build and Push Docker Images
   build-and-push:
