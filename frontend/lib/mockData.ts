@@ -5,10 +5,18 @@
 
 import { Message, Classification } from './types'
 
+// Helper function to generate UUID v4 compatible IDs for mock data
+function generateMockUUID(index: number): string {
+  // Generate a deterministic UUID v4 compatible string for mock data
+  // Format: 00000000-0000-4000-8000-000000000001 (valid UUID format)
+  const hex = index.toString(16).padStart(12, '0');
+  return `00000000-0000-4000-8000-${hex}`;
+}
+
 // Mock messages with various scenarios
 export const mockMessages: Message[] = [
   {
-    id: 'msg-001',
+    id: generateMockUUID(1),
     client_id: 'client_123',
     content: 'Привет! Хочу узнать про реферальную программу',
     message_type: 'user',
@@ -18,7 +26,7 @@ export const mockMessages: Message[] = [
     created_at: new Date(Date.now() - 3600000).toISOString(), // 1 hour ago
   },
   {
-    id: 'msg-002',
+    id: generateMockUUID(2),
     client_id: 'client_123',
     content: 'Здравствуйте! 👋 Рады видеть вас.\n\nЯ помощник первой линии поддержки. Чем я могу вам помочь?',
     message_type: 'bot_auto',
@@ -28,7 +36,7 @@ export const mockMessages: Message[] = [
     created_at: new Date(Date.now() - 3590000).toISOString(),
   },
   {
-    id: 'msg-003',
+    id: generateMockUUID(3),
     client_id: 'client_123',
     content: 'Как работает реферальная программа? Сколько можно заработать?',
     message_type: 'user',
@@ -38,7 +46,7 @@ export const mockMessages: Message[] = [
     created_at: new Date(Date.now() - 3500000).toISOString(),
   },
   {
-    id: 'msg-004',
+    id: generateMockUUID(4),
     client_id: 'client_123',
     content: 'Реферальная программа позволяет вам приглашать друзей и получать бонусы за каждого приглашенного пользователя. За каждого активного реферала вы получаете 500 рублей на счет.',
     message_type: 'bot_auto',
@@ -48,7 +56,7 @@ export const mockMessages: Message[] = [
     created_at: new Date(Date.now() - 3490000).toISOString(),
   },
   {
-    id: 'msg-005',
+    id: generateMockUUID(5),
     client_id: 'client_456',
     content: 'У меня проблема с оплатой! Не могу пополнить счет уже 2 дня!',
     message_type: 'user',
@@ -58,7 +66,7 @@ export const mockMessages: Message[] = [
     created_at: new Date(Date.now() - 1800000).toISOString(), // 30 min ago
   },
   {
-    id: 'msg-006',
+    id: generateMockUUID(6),
     client_id: 'client_456',
     content: 'Спасибо за обращение! Ваш запрос принят и передан оператору для обработки. Мы свяжемся с вами в ближайшее время для решения вашего вопроса.',
     message_type: 'bot_escalated',
@@ -68,7 +76,7 @@ export const mockMessages: Message[] = [
     created_at: new Date(Date.now() - 1790000).toISOString(),
   },
   {
-    id: 'msg-007',
+    id: generateMockUUID(7),
     client_id: 'client_789',
     content: 'Как изменить расписание тренировок?',
     message_type: 'user',
@@ -78,7 +86,7 @@ export const mockMessages: Message[] = [
     created_at: new Date(Date.now() - 900000).toISOString(), // 15 min ago
   },
   {
-    id: 'msg-008',
+    id: generateMockUUID(8),
     client_id: 'client_789',
     content: 'Вы можете изменить расписание тренировок через личный кабинет в разделе "Мои тренировки" или связавшись с вашим тренером.',
     message_type: 'bot_auto',
@@ -92,8 +100,8 @@ export const mockMessages: Message[] = [
 // Mock classifications
 export const mockClassifications: Classification[] = [
   {
-    id: 'cls-001',
-    message_id: 'msg-001',
+    id: generateMockUUID(100),
+    message_id: generateMockUUID(1),
     detected_scenario: 'GREETING',
     confidence: 0.92,
     ai_model: 'gpt-4o-mini',
@@ -101,8 +109,8 @@ export const mockClassifications: Classification[] = [
     reasoning: 'Клиент приветствует и обращается за помощью, что указывает на первое знакомство.',
   },
   {
-    id: 'cls-002',
-    message_id: 'msg-003',
+    id: generateMockUUID(101),
+    message_id: generateMockUUID(3),
     detected_scenario: 'REFERRAL',
     confidence: 0.88,
     ai_model: 'gpt-4o-mini',
@@ -110,8 +118,8 @@ export const mockClassifications: Classification[] = [
     reasoning: 'Клиент спрашивает о реферальной программе и возможности заработка.',
   },
   {
-    id: 'cls-003',
-    message_id: 'msg-005',
+    id: generateMockUUID(102),
+    message_id: generateMockUUID(5),
     detected_scenario: 'COMPLAINT',
     confidence: 0.95,
     ai_model: 'gpt-4o-mini',
@@ -119,8 +127,8 @@ export const mockClassifications: Classification[] = [
     reasoning: 'Клиент выражает недовольство проблемой с оплатой, использует восклицательные знаки, указывает на длительность проблемы.',
   },
   {
-    id: 'cls-004',
-    message_id: 'msg-007',
+    id: generateMockUUID(103),
+    message_id: generateMockUUID(7),
     detected_scenario: 'SCHEDULE_CHANGE',
     confidence: 0.85,
     ai_model: 'gpt-4o-mini',

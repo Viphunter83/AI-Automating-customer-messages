@@ -111,7 +111,11 @@ export const healthAPI = {
 
 // WebSocket helper
 export const createWebSocketUrl = () => {
-  const baseUrl = API_URL.replace("http", "ws");
+  // Replace only the protocol at the start of the URL, not all occurrences of "http"
+  // Use regex anchored to start to replace only the protocol scheme
+  const baseUrl = API_URL.replace(/^https?/, (protocol) => {
+    return protocol === 'https' ? 'wss' : 'ws';
+  });
   return baseUrl;
 };
 
