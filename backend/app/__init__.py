@@ -42,6 +42,8 @@ def create_app() -> FastAPI:
                 ],
                 storage_uri="memory://",
             )
+            # Add stricter rate limit for auth endpoints
+            # This will be applied via decorator in routes/auth.py if needed
             app.state.limiter = limiter
             app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
             logger.info("✅ Rate limiting enabled")
@@ -133,6 +135,22 @@ def create_app() -> FastAPI:
                 logger.error("OpenAI API is required for production")
             # Don't fail startup, but log warning
 
+        # Check Redis cache availability (non-blocking)
+        try:
+            from app.utils.redis_cache import get_redis_cache
+
+            redis_cache = await get_redis_cache()
+            # Test Redis connection
+            test_client = await redis_cache._get_client()
+            if test_client:
+                await test_client.ping()
+                logger.info("✅ Redis cache connected")
+            else:
+                logger.info("✅ Redis cache unavailable, using in-memory fallback")
+        except Exception as e:
+            logger.warning(f"⚠️ Redis cache check failed: {e}, will use in-memory fallback")
+            # Don't fail startup - fallback to in-memory cache
+
         # Start reminder scheduler
         try:
             reminder_scheduler = ReminderScheduler()
@@ -155,5 +173,12 @@ def create_app() -> FastAPI:
             app.state.reminder_scheduler.stop()
 
         await close_db()
+
+        # Close Redis cache connection
+        try:
+            from app.utils.redis_cache import close_redis_cache
+            await close_redis_cache()
+        except Exception as e:
+            logger.debug(f"Redis cache cleanup: {e}")
 
     return app

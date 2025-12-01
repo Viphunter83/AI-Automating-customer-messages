@@ -38,6 +38,9 @@ class Settings(BaseSettings):
         str, List[str]
     ] = "http://localhost:3000,http://localhost:8000"
 
+    # Redis (optional, falls back to in-memory cache if not available)
+    redis_url: str = "redis://localhost:6379/0"
+
     # Rate Limiting
     rate_limit_enabled: bool = True
     rate_limit_per_minute: int = 60  # Requests per minute per IP

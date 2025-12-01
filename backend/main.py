@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app import create_app
-from app.routes import health, messages, feedback, ws, admin, search, reminders, dialogs
+from app.routes import health, messages, feedback, ws, admin, search, reminders, dialogs, auth
 import logging
 import asyncio
 import subprocess
@@ -19,6 +19,7 @@ app = create_app()
 
 # Include routers
 app.include_router(health.router)
+app.include_router(auth.router)  # Authentication routes
 app.include_router(messages.router)
 app.include_router(feedback.router)
 app.include_router(admin.router)

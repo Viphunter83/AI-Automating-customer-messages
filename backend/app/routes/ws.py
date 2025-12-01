@@ -3,12 +3,17 @@ from typing import Dict, List
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
 
+from app.services.websocket_notifier import set_active_connections
+
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["websocket"])
 
 # Store active WebSocket connections per operator
 active_connections: Dict[str, List[WebSocket]] = {}
+
+# Initialize websocket_notifier with connections
+set_active_connections(active_connections)
 
 
 @router.websocket("/ws/operator/{operator_id}")
@@ -48,37 +53,6 @@ async def websocket_operator(websocket: WebSocket, operator_id: str):
                 del active_connections[operator_id]
 
 
-async def notify_operator(operator_id: str, message: dict):
-    """
-    Send notification to a specific operator
-
-    Args:
-        operator_id: ID of operator to notify
-        message: Dict with notification data
-    """
-    if operator_id not in active_connections:
-        logger.warning(f"Operator {operator_id} not connected")
-        return
-
-    disconnected = []
-    for connection in active_connections[operator_id]:
-        try:
-            await connection.send_json(message)
-            logger.debug(f"📨 Sent notification to {operator_id}")
-        except Exception as e:
-            logger.error(f"Error sending to {operator_id}: {str(e)}")
-            disconnected.append(connection)
-
-    # Remove disconnected connections
-    for conn in disconnected:
-        if conn in active_connections[operator_id]:
-            active_connections[operator_id].remove(conn)
-
-    if not active_connections[operator_id]:
-        del active_connections[operator_id]
-
-
-async def notify_all_operators(message: dict):
-    """Send notification to all connected operators"""
-    for operator_id in list(active_connections.keys()):
-        await notify_operator(operator_id, message)
+# Functions moved to app/services/websocket_notifier.py to avoid circular dependencies
+# Re-export for backward compatibility
+from app.services.websocket_notifier import notify_operator, notify_all_operators

@@ -28,6 +28,10 @@ python-json-logger==2.0.7
 tenacity==8.2.3
 slowapi==0.1.8
 apscheduler==3.10.4
+redis==5.0.1
+hiredis==2.2.3  # C parser for better performance
+python-jose[cryptography]==3.3.0
+passlib[bcrypt]==1.7.4
 
 # Testing
 pytest==7.4.3

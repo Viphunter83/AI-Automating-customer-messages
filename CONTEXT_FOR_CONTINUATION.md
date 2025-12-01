@@ -64,9 +64,12 @@ AI Automating customer messages/
 - SQLAlchemy 2.0.23 (async)
 - Alembic 1.13.0 (миграции)
 - PostgreSQL (asyncpg 0.29.0)
+- Redis 5.0.1 (распределенный кэш, опционально)
 - OpenAI API (через ProxyAPI для РФ)
 - APScheduler 3.10.4 (планировщик задач)
 - WebSocket (для уведомлений операторов)
+- Python-JOSE 3.3.0 (JWT аутентификация)
+- Passlib 1.7.4 (хеширование паролей)
 
 **Frontend:**
 - Next.js 14.2.33
@@ -102,6 +105,7 @@ OPENAI_API_KEY=sk-...
 SECRET_KEY=your-secret-key-minimum-32-characters-long
 OPENAI_API_BASE=https://api.proxyapi.ru/openai/v1
 OPENAI_MODEL=gpt-4o-mini
+REDIS_URL=redis://HOST:PORT/0  # Optional, falls back to in-memory cache if not available
 ALLOWED_ORIGINS=https://frontend-zeta-taupe-21.vercel.app,https://frontend-qawc41iml-olegs-projects-d32cda90.vercel.app,http://localhost:3000,http://localhost:8000
 DEBUG=False
 LOG_LEVEL=INFO
@@ -149,6 +153,7 @@ NEXT_PUBLIC_API_URL=https://ai-automating-customer-messages-production.up.railwa
 DATABASE_URL=postgresql+asyncpg://...
 OPENAI_API_KEY=sk-...
 SECRET_KEY=...
+REDIS_URL=redis://...  # Optional, falls back to in-memory cache
 ```
 
 **`.vercelignore`:**
@@ -213,16 +218,31 @@ SECRET_KEY=...
 
 ### Backend
 
-**`backend/app/routes/messages.py`** (893 строки)
+**`backend/app/routes/messages.py`** (~330 строк)
 - Главный endpoint для обработки сообщений (`POST /api/messages/`)
-- Реализует весь flow: получение → классификация → ответ → webhook
+- Использует отдельные сервисы для обработки, создания ответов и доставки
 - Включает:
   - Идемпотентность (проверка дубликатов)
-  - Транзакционная целостность
+  - Транзакционную целостность
   - Rate limiting
   - Обработку ошибок
-  - Определение первого сообщения
-  - Эскалацию
+  - Background tasks для webhooks
+
+**`backend/app/services/message_processing_service.py`**
+- Обработка входящих сообщений
+- Классификация AI
+- Определение эскалации
+- Проверка дубликатов
+
+**`backend/app/services/message_response_service.py`**
+- Создание ответов бота
+- Управление напоминаниями
+- Финализация обработки
+
+**`backend/app/services/message_delivery_service.py`**
+- Доставка через webhooks
+- WebSocket уведомления
+- Background tasks
 
 **`backend/app/services/ai_classifier.py`**
 - Интеграция с OpenAI API
@@ -242,7 +262,17 @@ SECRET_KEY=...
 **`backend/app/config.py`**
 - Конфигурация через Pydantic Settings
 - Валидация секретов при старте
-- Настройки CORS, rate limiting, AI
+- Настройки CORS, rate limiting, AI, Redis
+
+**`backend/app/auth/`**
+- JWT аутентификация для операторов
+- `jwt.py` - утилиты для работы с JWT токенами
+- `dependencies.py` - FastAPI dependencies для защиты endpoints
+- `routes/auth.py` - endpoints для логина и валидации токенов
+
+**`backend/app/utils/redis_cache.py`**
+- Redis cache с fallback на in-memory cache
+- Автоматическое переключение при недоступности Redis
 
 **`backend/app/__init__.py`**
 - Инициализация FastAPI приложения

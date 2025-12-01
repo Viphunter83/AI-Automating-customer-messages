@@ -17,6 +17,21 @@ services:
       timeout: 5s
       retries: 5
 
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: ai_support_redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    command: redis-server --appendonly yes
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
   # Backend FastAPI
   backend:
     build: ./backend
@@ -28,10 +43,14 @@ services:
     environment:
       # Override DATABASE_URL for Docker network (use postgres service name instead of localhost)
       DATABASE_URL: postgresql+asyncpg://support_user:support_pass@postgres:5432/ai_support
+      # Override REDIS_URL for Docker network (use redis service name instead of localhost)
+      REDIS_URL: redis://redis:6379/0
       # All other variables (OPENAI_API_KEY, SECRET_KEY, etc.) are loaded from backend/.env
       # No need to duplicate them here - env_file handles them automatically
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     volumes:
       - ./backend:/app
@@ -56,6 +75,7 @@ services:
 
 volumes:
   postgres_data:
+  redis_data:
 
 networks:
   default:

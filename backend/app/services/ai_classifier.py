@@ -9,6 +9,7 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 from app.config import get_settings
 from app.models.database import ScenarioType
 from app.utils.cache import get_cache
+from app.utils.redis_cache import get_redis_cache
 from app.utils.prompts import CLASSIFICATION_SYSTEM_PROMPT, CLASSIFICATION_USER_TEMPLATE
 
 logger = logging.getLogger(__name__)
@@ -49,18 +50,28 @@ class AIClassifier:
                 "error": None|"error message"
             }
         """
-        cache = get_cache()
-
-        # Generate cache key from message content
+        # Try Redis cache first, fallback to in-memory cache
+        cache_key = None
         if use_cache:
             message_hash = hashlib.md5(message.encode()).hexdigest()
             cache_key = f"classification:{message_hash}"
 
-            # Try cache first
+            # Try Redis cache first
+            try:
+                redis_cache = await get_redis_cache()
+                cached_result = await redis_cache.get(cache_key)
+                if cached_result is not None:
+                    logger.debug(f"Redis Cache HIT for classification: {message[:30]}...")
+                    cached_result["client_id"] = client_id
+                    return cached_result
+            except Exception as e:
+                logger.debug(f"Redis cache unavailable, trying in-memory cache: {e}")
+
+            # Fallback to in-memory cache
+            cache = get_cache()
             cached_result = cache.get(cache_key)
             if cached_result is not None:
-                logger.debug(f"Cache HIT for classification: {message[:30]}...")
-                # Add client_id to cached result
+                logger.debug(f"In-memory Cache HIT for classification: {message[:30]}...")
                 cached_result["client_id"] = client_id
                 return cached_result
 
@@ -122,11 +133,21 @@ class AIClassifier:
 
             # Cache result (only for successful classifications with high confidence)
             if use_cache and confidence >= 0.8:
-                message_hash = hashlib.md5(message.encode()).hexdigest()
-                cache_key = f"classification:{message_hash}"
-                # Cache for 5 minutes (300 seconds)
-                cache.set(cache_key, result_dict, ttl_seconds=300)
-                logger.debug(f"Cached classification result for: {message[:30]}...")
+                if cache_key is None:
+                    message_hash = hashlib.md5(message.encode()).hexdigest()
+                    cache_key = f"classification:{message_hash}"
+                
+                # Try Redis cache first
+                try:
+                    redis_cache = await get_redis_cache()
+                    await redis_cache.set(cache_key, result_dict, ttl_seconds=300)
+                    logger.debug(f"Cached classification in Redis: {message[:30]}...")
+                except Exception as e:
+                    logger.debug(f"Redis cache unavailable, using in-memory cache: {e}")
+                    # Fallback to in-memory cache
+                    cache = get_cache()
+                    cache.set(cache_key, result_dict, ttl_seconds=300)
+                    logger.debug(f"Cached classification in memory: {message[:30]}...")
 
             return result_dict
 
