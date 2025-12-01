@@ -36,6 +36,8 @@ export default function DemoPage() {
     currentLoadingRef.current = message.id
     setLoading(message.id)
     
+    let timer: NodeJS.Timeout | null = null
+    
     try {
       const response = await api.post('/api/messages/', {
         client_id: message.client_id,
@@ -48,7 +50,8 @@ export default function DemoPage() {
       queryClient.invalidateQueries({ queryKey: ['classifications', message.client_id] })
       
       // Only clear loading state if this is still the current loading message
-      const timer = setTimeout(() => {
+      // Store timer immediately after creation to prevent memory leaks
+      timer = setTimeout(() => {
         // Check if this message is still the one being loaded
         if (currentLoadingRef.current === message.id) {
           setLoading(null)
@@ -57,6 +60,7 @@ export default function DemoPage() {
         timerRefs.current.delete(message.id)
       }, 2000)
       
+      // Store timer reference immediately to ensure it can be cleaned up
       timerRefs.current.set(message.id, timer)
     } catch (error: any) {
       setResults(prev => ({ 
@@ -73,11 +77,17 @@ export default function DemoPage() {
         currentLoadingRef.current = null
       }
       
-      // Clear timer if exists
-      const existingTimer = timerRefs.current.get(message.id)
-      if (existingTimer) {
-        clearTimeout(existingTimer)
+      // Clear timer if exists (check both local timer and ref to handle all cases)
+      if (timer) {
+        clearTimeout(timer)
         timerRefs.current.delete(message.id)
+      } else {
+        // Fallback: check ref in case timer was created but variable wasn't set
+        const existingTimer = timerRefs.current.get(message.id)
+        if (existingTimer) {
+          clearTimeout(existingTimer)
+          timerRefs.current.delete(message.id)
+        }
       }
     }
   }
