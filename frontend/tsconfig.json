@@ -23,16 +23,25 @@
     "rootDir": ".",
     "paths": {
       "@/lib/*": [
-        "lib/*"
+        "./lib/*"
+      ],
+      "@/lib/types": [
+        "./lib/types.ts"
+      ],
+      "@/lib/api": [
+        "./lib/api.ts"
+      ],
+      "@/lib/mockData": [
+        "./lib/mockData.ts"
       ],
       "@/components/*": [
-        "components/*"
+        "./components/*"
       ],
       "@/hooks/*": [
-        "hooks/*"
+        "./hooks/*"
       ],
       "@/app/*": [
-        "app/*"
+        "./app/*"
       ],
       "@/*": [
         "./*"

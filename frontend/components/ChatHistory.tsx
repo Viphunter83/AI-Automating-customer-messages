@@ -22,7 +22,7 @@ export function ChatHistory({ messages, isLoading }: ChatHistoryProps) {
   }, [messages])
   
   const getMessageLabel = (type: Message['message_type']) => {
-    const labels = {
+    const labels: Record<Message['message_type'], string> = {
       user: '👤 Client',
       bot_auto: '🤖 Auto',
       bot_escalated: '⚠️ Escalated',

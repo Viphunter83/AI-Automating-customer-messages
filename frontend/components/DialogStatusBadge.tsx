@@ -10,7 +10,7 @@ interface DialogStatusBadgeProps {
 }
 
 export function DialogStatusBadge({ status, className }: DialogStatusBadgeProps) {
-  const statusConfig = {
+  const statusConfig: Record<DialogStatus, { label: string; className: string; icon: string }> = {
     open: {
       label: 'Открыт',
       className: 'bg-green-100 text-green-900 border-green-300 dark:bg-green-900 dark:text-green-100',

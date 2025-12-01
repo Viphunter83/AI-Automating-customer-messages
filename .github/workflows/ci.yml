@@ -76,9 +76,8 @@ jobs:
         cd frontend
         npm run lint
     - name: Type check
-      run: |
-        cd frontend
-        npm run type-check
+      working-directory: frontend
+      run: npm run type-check
 
   # Build and Push Docker Images
   build-and-push:
