@@ -64,9 +64,10 @@ export default function DemoPage() {
       // Store timer reference immediately to ensure it can be cleaned up
       timerRefs.current.set(message.id, timer)
     } catch (error: unknown) {
-      const errorMessage = error instanceof Error 
-        ? error.message 
-        : (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail || 'Unknown error'
+      // Check for API response data first (most specific error message)
+      const apiError = error as { response?: { data?: { detail?: string } } }
+      const errorMessage = apiError?.response?.data?.detail 
+        || (error instanceof Error ? error.message : 'Unknown error')
       setResults(prev => ({ 
         ...prev, 
         [message.id]: { 
