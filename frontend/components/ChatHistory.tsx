@@ -31,6 +31,11 @@ export function ChatHistory({ messages, isLoading }: ChatHistoryProps) {
     return labels[type] || 'Unknown'
   }
   
+  // Sort messages by created_at (oldest first) for chronological display
+  const sortedMessages = [...messages].sort((a, b) => 
+    new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
+  )
+  
   return (
     <div
       ref={scrollRef}
@@ -43,7 +48,7 @@ export function ChatHistory({ messages, isLoading }: ChatHistoryProps) {
         </div>
       )}
       
-      {messages.map((msg) => (
+      {sortedMessages.map((msg) => (
         <div
           key={msg.id}
           className={clsx(
@@ -67,7 +72,8 @@ export function ChatHistory({ messages, isLoading }: ChatHistoryProps) {
           
           <p className="text-sm text-gray-800 break-words">{msg.content}</p>
           
-          {msg.classification && (
+          {/* Only show classification for user messages (not bot responses) */}
+          {msg.classification && msg.message_type === 'user' && (
             <div className="mt-2 pt-2 border-t border-gray-200 text-xs">
               <div className="flex items-center gap-2">
                 <span className="font-semibold">Classification:</span>
