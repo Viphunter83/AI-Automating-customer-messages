@@ -181,6 +181,15 @@ export default function DemoPage() {
                                     ({(result.data.classification.confidence * 100).toFixed(0)}%)
                                   </div>
                                 )}
+                                {result.data?.response && (
+                                  <div className="mt-2 p-2 bg-white rounded border border-green-300">
+                                    <div className="text-xs font-semibold mb-1">🤖 Ответ системы:</div>
+                                    <div className="text-sm whitespace-pre-wrap">{result.data.response.text}</div>
+                                    <div className="text-xs text-gray-600 mt-1">
+                                      Тип: {result.data.response.type}
+                                    </div>
+                                  </div>
+                                )}
                               </div>
                             ) : (
                               <div>❌ Ошибка: {result.error}</div>
