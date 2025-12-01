@@ -1,8 +1,13 @@
-backend/
-api/
+# Backend files are needed for api/index.py serverless function
+# Only exclude unnecessary files
 *.md
 docker-compose*.yml
 Dockerfile
 .git/
-node_modules/
 .env*
+# Exclude frontend node_modules (will be installed during build)
+frontend/node_modules/
+# Exclude backend __pycache__ and .pytest_cache
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.pytest_cache/
