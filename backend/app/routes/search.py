@@ -74,14 +74,23 @@ async def export_dialog_csv(
     client_id: str, session: AsyncSession = Depends(get_session)
 ):
     """Export dialog as CSV"""
-    service = ExportService(session)
-    csv_data = await service.export_dialog_csv(client_id)
+    try:
+        service = ExportService(session)
+        csv_data = await service.export_dialog_csv(client_id)
 
-    return StreamingResponse(
-        iter([csv_data]),
-        media_type="text/csv",
-        headers={"Content-Disposition": f"attachment; filename=dialog_{client_id}.csv"},
-    )
+        return StreamingResponse(
+            iter([csv_data]),
+            media_type="text/csv; charset=utf-8",
+            headers={
+                "Content-Disposition": f"attachment; filename=dialog_{client_id}_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"
+            },
+        )
+    except Exception as e:
+        logger.error(f"Error exporting dialog CSV for client_id {client_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export dialog CSV: {str(e)}"
+        )
 
 
 @router.get("/export/dialog/{client_id}.json")
@@ -89,9 +98,16 @@ async def export_dialog_json(
     client_id: str, session: AsyncSession = Depends(get_session)
 ):
     """Export dialog as JSON"""
-    service = ExportService(session)
-    json_data = await service.export_dialog_json(client_id)
-    return json_data
+    try:
+        service = ExportService(session)
+        json_data = await service.export_dialog_json(client_id)
+        return json_data
+    except Exception as e:
+        logger.error(f"Error exporting dialog JSON for client_id {client_id}: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export dialog JSON: {str(e)}"
+        )
 
 
 @router.get("/export/report")
@@ -99,9 +115,16 @@ async def export_report(
     hours: int = Query(24, ge=1, le=720), session: AsyncSession = Depends(get_session)
 ):
     """Export analytics report"""
-    service = ExportService(session)
-    report = await service.export_analytics_report(hours=hours)
-    return report
+    try:
+        service = ExportService(session)
+        report = await service.export_analytics_report(hours=hours)
+        return report
+    except Exception as e:
+        logger.error(f"Error exporting analytics report (hours={hours}): {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export analytics report: {str(e)}"
+        )
 
 
 @router.post("/export/results")
@@ -109,51 +132,58 @@ async def export_search_results(
     search_params: Dict = Body(...), session: AsyncSession = Depends(get_session)
 ):
     """Export search results as CSV or JSON"""
-    service = SearchService(session)
-    result = await service.search_messages(
-        query=search_params.get("q", ""),
-        client_id=search_params.get("client_id"),
-        scenario=search_params.get("scenario"),
-        min_confidence=search_params.get("min_confidence", 0.0),
-        limit=search_params.get("limit", 1000),  # Large limit for export
-        offset=0,
-    )
-    
-    format_type = search_params.get("format", "csv")
-    
-    if format_type == "csv":
-        output = StringIO()
-        writer = csv.writer(output)
-        writer.writerow([
-            "ID", "Client ID", "Timestamp", "Type", "Content", 
-            "Scenario", "Confidence", "Reasoning", "Priority"
-        ])
-        
-        for msg in result["messages"]:
-            classification = msg.get("classification", {})
-            writer.writerow([
-                msg["id"],
-                msg["client_id"],
-                msg["created_at"],
-                msg["message_type"],
-                msg["content"],
-                classification.get("scenario") or "N/A",
-                f"{classification.get('confidence', 0) * 100:.2f}%" if classification.get("confidence") else "N/A",
-                classification.get("reasoning") or "",
-                msg.get("priority") or "N/A",
-            ])
-        
-        csv_data = output.getvalue()
-        return StreamingResponse(
-            iter([csv_data]),
-            media_type="text/csv",
-            headers={"Content-Disposition": f"attachment; filename=search_results_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"},
+    try:
+        service = SearchService(session)
+        result = await service.search_messages(
+            query=search_params.get("q", ""),
+            client_id=search_params.get("client_id"),
+            scenario=search_params.get("scenario"),
+            min_confidence=search_params.get("min_confidence", 0.0),
+            limit=search_params.get("limit", 1000),  # Large limit for export
+            offset=0,
         )
-    else:
-        return {
-            "export_date": datetime.utcnow().isoformat(),
-            "search_params": search_params,
-            "total": result["total"],
-            "count": result["count"],
-            "messages": result["messages"],
-        }
+        
+        format_type = search_params.get("format", "csv")
+        
+        if format_type == "csv":
+            output = StringIO()
+            writer = csv.writer(output)
+            writer.writerow([
+                "ID", "Client ID", "Timestamp", "Type", "Content", 
+                "Scenario", "Confidence", "Reasoning", "Priority"
+            ])
+            
+            for msg in result.get("messages", []):
+                classification = msg.get("classification") or {}
+                writer.writerow([
+                    msg.get("id", ""),
+                    msg.get("client_id", ""),
+                    msg.get("created_at", ""),
+                    msg.get("message_type", ""),
+                    msg.get("content", ""),
+                    classification.get("scenario") if isinstance(classification, dict) else "N/A",
+                    f"{classification.get('confidence', 0) * 100:.2f}%" if isinstance(classification, dict) and classification.get("confidence") is not None else "N/A",
+                    classification.get("reasoning") if isinstance(classification, dict) else "",
+                    msg.get("priority") or "N/A",
+                ])
+            
+            csv_data = output.getvalue()
+            return StreamingResponse(
+                iter([csv_data]),
+                media_type="text/csv; charset=utf-8",
+                headers={"Content-Disposition": f"attachment; filename=search_results_{datetime.utcnow().strftime('%Y%m%d_%H%M%S')}.csv"},
+            )
+        else:
+            return {
+                "export_date": datetime.utcnow().isoformat(),
+                "search_params": search_params,
+                "total": result.get("total", 0),
+                "count": result.get("count", 0),
+                "messages": result.get("messages", []),
+            }
+    except Exception as e:
+        logger.error(f"Error exporting search results: {e}", exc_info=True)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to export search results: {str(e)}"
+        )

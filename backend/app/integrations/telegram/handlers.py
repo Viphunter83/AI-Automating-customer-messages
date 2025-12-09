@@ -42,3 +42,12 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(help_message)
     logger.info(f"User {update.effective_user.id} requested help")
 
+
+
+
+
+
+
+
+
+

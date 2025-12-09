@@ -20,6 +20,9 @@ class ScenarioType(str, Enum):
     MASS_OUTAGE = "MASS_OUTAGE"
     REVIEW_BONUS = "REVIEW_BONUS"
     CROSS_EXTENSION = "CROSS_EXTENSION"
+    LESSON_CANCELLATION = "LESSON_CANCELLATION"  # Отмена урока
+    LESSON_LINK = "LESSON_LINK"  # Отправка ссылки на урок
+    GREETING_TIME_REQUEST = "GREETING_TIME_REQUEST"  # Запрос удобного времени
     UNKNOWN = "UNKNOWN"
     ESCALATED = "ESCALATED"  # Special scenario for escalation notifications
 
@@ -254,6 +257,7 @@ class ChatSessionResponse(BaseModel):
     message_count: Optional[int] = None
     last_message_preview: Optional[str] = None
     last_message_at: Optional[datetime] = None
+    unread_count: Optional[int] = Field(None, description="Number of unread messages for current operator")
 
     class Config:
         from_attributes = True

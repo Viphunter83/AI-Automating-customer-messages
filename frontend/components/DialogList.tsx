@@ -47,13 +47,15 @@ export function DialogList({ onSelectDialog, selectedClientId }: DialogListProps
   })
 
   return (
-    <div className="space-y-2 overflow-y-auto">
+    <div className="space-y-2 overflow-y-auto h-full">
       {sortedDialogs.map((dialog) => (
         <Card
           key={dialog.client_id}
-          className={`p-4 cursor-pointer transition-all hover:shadow-md ${
+          className={`p-3 cursor-pointer transition-all hover:shadow-md relative ${
             selectedClientId === dialog.client_id
-              ? 'border-blue-500 bg-blue-50'
+              ? 'border-blue-500 bg-blue-50 shadow-sm'
+              : dialog.unread_count && dialog.unread_count > 0
+              ? 'border-l-4 border-l-red-500 bg-red-50/30'
               : 'hover:border-gray-300'
           }`}
           onClick={() => onSelectDialog(dialog.client_id)}
@@ -86,6 +88,18 @@ export function DialogList({ onSelectDialog, selectedClientId }: DialogListProps
                   </span>
                 )}
               </div>
+              
+              {/* Unread message indicator */}
+              {dialog.unread_count !== undefined && dialog.unread_count > 0 && (
+                <div className="absolute top-2 right-2">
+                  <Badge 
+                    variant="destructive" 
+                    className="bg-red-500 text-white font-semibold px-2 py-0.5 rounded-full min-w-[20px] text-xs"
+                  >
+                    {dialog.unread_count > 99 ? '99+' : dialog.unread_count}
+                  </Badge>
+                </div>
+              )}
             </div>
           </div>
         </Card>

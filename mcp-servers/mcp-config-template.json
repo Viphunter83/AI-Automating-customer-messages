@@ -1,0 +1,27 @@
+{
+  "mcpServers": {
+    "selfhosted-supabase-PROJECT_NAME": {
+      "command": "node",
+      "args": [
+        "/ABSOLUTE/PATH/TO/mcp-servers/selfhosted-supabase-mcp/dist/index.js",
+        "--url",
+        "http://your-supabase-host:8000",
+        "--anon-key",
+        "YOUR_ANON_KEY",
+        "--service-key",
+        "YOUR_SERVICE_ROLE_KEY",
+        "--db-url",
+        "postgresql://postgres:YOUR_PASSWORD@your-supabase-host:5437/postgres",
+        "--jwt-secret",
+        "YOUR_JWT_SECRET"
+      ]
+    }
+  }
+}
+
+
+
+
+
+
+

@@ -76,7 +76,56 @@ export function ChatHistory({ messages, isLoading, clientId }: ChatHistoryProps)
             </span>
           </div>
           
-          <p className="text-sm text-gray-800 break-words">{msg.content}</p>
+          {/* Show content, but hide file_id line for media messages */}
+          {msg.content.includes('[ФОТО получено') ? (
+            <div>
+              {/* Extract and display caption if present */}
+              {msg.content.includes('Подпись:') && (
+                <p className="text-sm text-gray-800 break-words mb-2">
+                  {msg.content.split('Подпись:')[1]}
+                </p>
+              )}
+              {/* Extract file_id and show image */}
+              {(() => {
+                const fileIdMatch = msg.content.match(/file_id:\s*([^\]]+)/);
+                if (fileIdMatch) {
+                  const fileId = fileIdMatch[1].trim();
+                  const proxyUrl = `/api/operator/telegram-file/${fileId}`;
+                  return (
+                    <div className="mt-2">
+                      <img 
+                        src={proxyUrl}
+                        alt="Скриншот от клиента"
+                        className="max-w-full h-auto rounded border border-gray-300 cursor-pointer"
+                        style={{ maxHeight: '300px' }}
+                        onClick={() => window.open(proxyUrl, '_blank')}
+                        onError={(e) => {
+                          // Show error message if image fails to load
+                          const img = e.target as HTMLImageElement;
+                          img.style.display = 'none';
+                          const errorDiv = document.createElement('div');
+                          errorDiv.className = 'text-xs text-red-600 mt-1';
+                          errorDiv.textContent = 'Не удалось загрузить изображение';
+                          img.parentElement?.appendChild(errorDiv);
+                        }}
+                      />
+                      <a
+                        href={proxyUrl}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-blue-600 hover:underline mt-1 block"
+                      >
+                        📷 Открыть в полном размере
+                      </a>
+                    </div>
+                  );
+                }
+                return <p className="text-sm text-gray-600">📷 Фото получено</p>;
+              })()}
+            </div>
+          ) : (
+            <p className="text-sm text-gray-800 break-words">{msg.content}</p>
+          )}
           
           {/* Only show classification for user messages (not bot responses) */}
           {msg.classification && msg.message_type === 'user' && (

@@ -1,0 +1,63 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: neiromatrius-backend
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      # Database - Supabase (direct PostgreSQL connection via SQLAlchemy ORM)
+      # Format: postgresql+asyncpg://postgres:[PASSWORD]@[HOST]:[PORT]/postgres
+      DATABASE_URL: ${DATABASE_URL}
+      
+      # Redis (optional, falls back to in-memory cache if not available)
+      # If Redis service is deployed, use: redis://neiromatrius-redis:6379/0
+      # If external Redis, use your Redis URL
+      # If not set, will use in-memory cache (not recommended for production with multiple instances)
+      REDIS_URL: ${REDIS_URL:-}
+      
+      # OpenAI / LLM
+      OPENAI_API_KEY: ${OPENAI_API_KEY}
+      OPENAI_API_BASE: ${OPENAI_API_BASE:-https://api.proxyapi.ru/openai/v1}
+      OPENAI_MODEL: ${OPENAI_MODEL:-gpt-4o-mini}
+      
+      # App Configuration
+      APP_NAME: ${APP_NAME:-Neiromatrius}
+      APP_VERSION: ${APP_VERSION:-1.0.0}
+      DEBUG: ${DEBUG:-false}
+      LOG_LEVEL: ${LOG_LEVEL:-INFO}
+      
+      # Security
+      SECRET_KEY: ${SECRET_KEY}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-["*"]}
+      
+      # Timeouts
+      AI_CLASSIFICATION_TIMEOUT: ${AI_CLASSIFICATION_TIMEOUT:-30}
+      AI_CONFIDENCE_THRESHOLD: ${AI_CONFIDENCE_THRESHOLD:-0.85}
+      
+      # Telegram Bot (optional)
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-false}
+      TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      TELEGRAM_WEBHOOK_BASE_URL: ${TELEGRAM_WEBHOOK_BASE_URL:-}
+      
+      # Docker environment flag
+      DOCKER_ENV: "true"
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    networks:
+      - neiromatrius-network
+
+networks:
+  neiromatrius-network:
+    external: true
+

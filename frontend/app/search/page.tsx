@@ -120,7 +120,10 @@ export default function SearchPage() {
   }
 
   const handleExportSearchResults = async (format: 'csv' | 'json') => {
-    if (!searchResults?.messages || searchResults.messages.length === 0) return
+    if (!searchResults?.messages || searchResults.messages.length === 0) {
+      alert('Нет данных для экспорта')
+      return
+    }
 
     try {
       const searchParams = {
@@ -134,41 +137,102 @@ export default function SearchPage() {
       if (format === 'csv') {
         // Use backend export endpoint for CSV
         const response = await searchAPI.exportSearchResults(searchParams, 'csv')
-        const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
+        
+        // Check if response.data is already a Blob
+        let blob: Blob
+        if (response.data instanceof Blob) {
+          blob = response.data
+        } else {
+          // Convert to Blob if it's not already
+          blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
+        }
+        
+        const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
-        link.href = URL.createObjectURL(blob)
-        link.download = `search_results_${new Date().toISOString().split('T')[0]}.csv`
+        link.href = url
+        const fileName = `search_results_${new Date().toISOString().split('T')[0]}.csv`
+        link.download = fileName
+        link.style.display = 'none'
+        document.body.appendChild(link)
         link.click()
+        
+        // Clean up after a short delay
+        setTimeout(() => {
+          document.body.removeChild(link)
+          URL.revokeObjectURL(url)
+        }, 100)
+        
+        // Show success notification
+        alert(`✅ Файл "${fileName}" успешно скачан!\n\nФайл сохранен в папку "Загрузки" (Downloads).\nВы можете открыть его в Excel или другом редакторе CSV.`)
       } else {
         // Use backend export endpoint for JSON
         const response = await searchAPI.exportSearchResults(searchParams, 'json')
         const jsonData = response.data
         const blob = new Blob([JSON.stringify(jsonData, null, 2)], { type: 'application/json' })
+        const url = URL.createObjectURL(blob)
         const link = document.createElement('a')
-        link.href = URL.createObjectURL(blob)
-        link.download = `search_results_${new Date().toISOString().split('T')[0]}.json`
+        link.href = url
+        const fileName = `search_results_${new Date().toISOString().split('T')[0]}.json`
+        link.download = fileName
+        link.style.display = 'none'
+        document.body.appendChild(link)
         link.click()
+        
+        // Clean up after a short delay
+        setTimeout(() => {
+          document.body.removeChild(link)
+          URL.revokeObjectURL(url)
+        }, 100)
+        
+        // Show success notification
+        alert(`✅ Файл "${fileName}" успешно скачан!\n\nФайл сохранен в папку "Загрузки" (Downloads).\nВы можете открыть его в текстовом редакторе.`)
       }
     } catch (error) {
       console.error('Export error:', error)
-      alert('Ошибка при экспорте данных')
+      alert('❌ Ошибка при экспорте данных. Проверьте консоль браузера для подробностей.')
     }
   }
 
   const handleExportDialog = async (format: 'csv' | 'json') => {
-    if (!selectedClient) return
+    if (!selectedClient) {
+      alert('Выберите клиента для экспорта диалога')
+      return
+    }
     try {
       const response = await searchAPI.exportDialog(selectedClient, format)
-      const blob = format === 'csv' 
-        ? new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
-        : new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' })
+      let blob: Blob
+      if (format === 'csv') {
+        // Check if response.data is already a Blob
+        if (response.data instanceof Blob) {
+          blob = response.data
+        } else {
+          blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
+        }
+      } else {
+        blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' })
+      }
+      
+      const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.href = URL.createObjectURL(blob)
-      link.download = `dialog_${selectedClient}_${new Date().toISOString().split('T')[0]}.${format}`
+      link.href = url
+      const fileName = `dialog_${selectedClient}_${new Date().toISOString().split('T')[0]}.${format}`
+      link.download = fileName
+      link.style.display = 'none'
+      document.body.appendChild(link)
       link.click()
+      
+      // Clean up after a short delay
+      setTimeout(() => {
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+      }, 100)
+      
+      // Show success notification
+      const fileType = format === 'csv' ? 'CSV' : 'JSON'
+      alert(`✅ Файл "${fileName}" успешно скачан!\n\nФайл сохранен в папку "Загрузки" (Downloads).\n${format === 'csv' ? 'Вы можете открыть его в Excel или другом редакторе CSV.' : 'Вы можете открыть его в текстовом редакторе.'}`)
     } catch (error) {
       console.error('Export error:', error)
-      alert('Ошибка при экспорте диалога')
+      alert('❌ Ошибка при экспорте диалога. Проверьте консоль браузера для подробностей.')
     }
   }
 

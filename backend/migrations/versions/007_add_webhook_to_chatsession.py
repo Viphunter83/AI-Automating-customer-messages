@@ -31,3 +31,12 @@ def downgrade() -> None:
     op.drop_column('chat_sessions', 'platform')
     op.drop_column('chat_sessions', 'webhook_url')
 
+
+
+
+
+
+
+
+
+

@@ -52,6 +52,8 @@ class WebhookSender:
     ) -> Dict[str, any]:
         """
         Send bot response back to platform
+        
+        Implements idempotency check to prevent duplicate webhook calls.
 
         Args:
             client_id: Client identifier
@@ -63,9 +65,41 @@ class WebhookSender:
             {
                 "success": bool,
                 "platform_message_id": str|None,
-                "error": str|None
+                "error": str|None,
+                "skipped": bool (if already sent)
             }
         """
+        # Check idempotency first (prevent duplicate webhook calls)
+        try:
+            from app.utils.redis_cache import get_redis_cache
+            redis_cache = await get_redis_cache()
+            sent_key = f"webhook_sent:{message_id}"
+            already_sent = await redis_cache.get(sent_key)
+            
+            if already_sent:
+                logger.info(
+                    f"Webhook for message {message_id} already sent, skipping duplicate call"
+                )
+                # Increment duplicate counter for monitoring
+                try:
+                    duplicate_key = "metrics:webhook_duplicates"
+                    current_count = await redis_cache.get(duplicate_key)
+                    count = int(current_count) if current_count else 0
+                    await redis_cache.set(duplicate_key, str(count + 1), ttl_seconds=86400)  # 24h TTL
+                except Exception as e:
+                    logger.debug(f"Failed to increment duplicate counter: {e}")
+                
+                platform_msg_id = already_sent if isinstance(already_sent, str) else str(already_sent)
+                return {
+                    "success": True,
+                    "platform_message_id": platform_msg_id,
+                    "error": None,
+                    "skipped": True,
+                    "reason": "already_sent",
+                }
+        except Exception as e:
+            logger.debug(f"Idempotency check failed for message {message_id}: {e}, continuing with send")
+        
         try:
             payload = {
                 "client_id": client_id,
@@ -99,13 +133,26 @@ class WebhookSender:
                     )
                     else {}
                 )
+                platform_msg_id = result.get("message_id") or message_id
                 logger.info(
                     f"✅ Response sent to platform for client {client_id}, "
                     f"status: {response.status_code}"
                 )
+                
+                # Mark as sent after successful delivery (idempotency)
+                try:
+                    from app.utils.redis_cache import get_redis_cache
+                    redis_cache = await get_redis_cache()
+                    sent_key = f"webhook_sent:{message_id}"
+                    # Store platform message ID for reference, TTL 1 hour
+                    await redis_cache.set(sent_key, str(platform_msg_id), ttl_seconds=3600)
+                    logger.debug(f"Marked webhook for message {message_id} as sent")
+                except Exception as e:
+                    logger.debug(f"Failed to mark webhook as sent: {e}")
+                
                 return {
                     "success": True,
-                    "platform_message_id": result.get("message_id"),
+                    "platform_message_id": platform_msg_id,
                     "error": None,
                     "status_code": response.status_code,
                 }

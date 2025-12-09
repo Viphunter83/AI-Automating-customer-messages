@@ -78,3 +78,12 @@ async def get_optional_operator(
         logger.debug(f"Optional auth failed: {e}")
         return None
 
+
+
+
+
+
+
+
+
+

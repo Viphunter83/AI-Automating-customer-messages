@@ -10,6 +10,8 @@ from app.database import get_session
 from app.models.database import ChatSession, DialogStatus, Message
 from app.models.schemas import ChatSessionResponse, ChatSessionUpdate, DialogStatusEnum
 from app.services.dialog_auto_close import DialogAutoCloseService
+from app.services.unread_tracker import UnreadTrackerService
+from app.auth.dependencies import get_optional_operator
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +24,7 @@ async def list_dialogs(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
     session: AsyncSession = Depends(get_session),
+    operator_id: Optional[str] = Depends(get_optional_operator),
 ):
     """List all chat sessions with optional filtering"""
     conditions = []
@@ -79,6 +82,15 @@ async def list_dialogs(
                     "created_at": last_msg.created_at
                 }
 
+    # Get unread counts if operator_id is provided
+    unread_counts = {}
+    if operator_id:
+        try:
+            unread_tracker = UnreadTrackerService(session)
+            unread_counts = await unread_tracker.get_unread_counts_for_all_clients(operator_id)
+        except Exception as e:
+            logger.warning(f"Failed to get unread counts: {e}")
+
     # Convert DialogStatus enum to DialogStatusEnum for Pydantic
     return [
         ChatSessionResponse(
@@ -93,6 +105,7 @@ async def list_dialogs(
             message_count=message_counts.get(s.client_id, 0),
             last_message_preview=last_messages.get(s.client_id, {}).get("preview"),
             last_message_at=last_messages.get(s.client_id, {}).get("created_at"),
+            unread_count=unread_counts.get(s.client_id, 0) if operator_id else None,
         )
         for s in sessions
     ]

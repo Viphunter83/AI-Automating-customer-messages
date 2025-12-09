@@ -40,14 +40,27 @@ export default function AnalyticsPage() {
       const response = await api.get('/api/search/export/report', {
         params: { hours }
       })
+      const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
       const link = document.createElement('a')
-      link.href = URL.createObjectURL(
-        new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' })
-      )
-      link.download = `analytics_report_${new Date().toISOString().split('T')[0]}.json`
+      link.href = url
+      const fileName = `analytics_report_${new Date().toISOString().split('T')[0]}.json`
+      link.download = fileName
+      link.style.display = 'none'
+      document.body.appendChild(link)
       link.click()
+      
+      // Clean up after a short delay
+      setTimeout(() => {
+        document.body.removeChild(link)
+        URL.revokeObjectURL(url)
+      }, 100)
+      
+      // Show success notification
+      alert(`✅ Файл "${fileName}" успешно скачан!\n\nФайл сохранен в папку "Загрузки" (Downloads).\nВы можете открыть его в текстовом редакторе.`)
     } catch (error) {
       console.error('Export failed:', error)
+      alert('❌ Ошибка при экспорте отчета. Проверьте консоль браузера для подробностей.')
     }
   }
 

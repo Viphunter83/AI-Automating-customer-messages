@@ -3,6 +3,7 @@ const nextConfig = {
   reactStrictMode: true,
   experimental: {
     esmExternals: true,
+    missingSuspenseWithCSRBailout: false,
   },
   env: {
     NEXT_PUBLIC_API_URL: process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000",
@@ -14,6 +15,10 @@ const nextConfig = {
   typescript: {
     // Don't fail build on TypeScript errors during production builds
     ignoreBuildErrors: true,
+  },
+  // Отключить статическую генерацию страниц ошибок
+  generateBuildId: async () => {
+    return 'build-' + Date.now()
   },
   // Отключить Turbopack для исправления проблемы с Tailwind CSS
   // Turbopack иногда имеет проблемы с обработкой CSS в dev режиме

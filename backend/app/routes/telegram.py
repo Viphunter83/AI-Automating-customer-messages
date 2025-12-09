@@ -106,6 +106,8 @@ async def telegram_response_webhook(
     Internal webhook endpoint for sending responses back to Telegram
     
     This is called by MessageDeliveryService to send responses to Telegram users.
+    
+    Implements idempotency check to prevent duplicate message delivery.
     """
     if not settings.telegram_enabled:
         logger.warning("Telegram response received but integration is disabled")
@@ -117,6 +119,41 @@ async def telegram_response_webhook(
         return {"ok": False, "error": "Bot not initialized"}
     
     try:
+        message_id = response_data.get("message_id")
+        
+        # Check if message was already sent (idempotency check)
+        if message_id:
+            try:
+                from app.utils.redis_cache import get_redis_cache
+                redis_cache = await get_redis_cache()
+                
+                # Check if this message was already sent
+                sent_key = f"telegram_sent:{message_id}"
+                already_sent = await redis_cache.get(sent_key)
+                
+                if already_sent:
+                    logger.info(
+                        f"Message {message_id} already sent to Telegram, skipping duplicate delivery"
+                    )
+                    # Increment duplicate counter for monitoring
+                    try:
+                        duplicate_key = "metrics:telegram_duplicates"
+                        current_count = await redis_cache.get(duplicate_key)
+                        count = int(current_count) if current_count else 0
+                        await redis_cache.set(duplicate_key, str(count + 1), ttl_seconds=86400)  # 24h TTL
+                    except Exception as e:
+                        logger.debug(f"Failed to increment duplicate counter: {e}")
+                    
+                    return {
+                        "ok": True,
+                        "success": True,
+                        "skipped": True,
+                        "reason": "already_sent",
+                        "telegram_message_id": already_sent if isinstance(already_sent, str) else str(already_sent),
+                    }
+            except Exception as e:
+                logger.warning(f"Failed to check idempotency for message {message_id}: {e}, continuing with send")
+        
         # Get chat_id from header (set by bot when calling /api/messages/)
         # If not in header, try to extract from client_id format "telegram_123456"
         chat_id = x_chat_id
@@ -150,8 +187,21 @@ async def telegram_response_webhook(
         result = await bot.sender.send_response(
             chat_id=chat_id_int,
             response_text=response_text,
-            message_id=response_data.get("message_id"),
+            message_id=message_id,
         )
+        
+        # Mark as sent after successful delivery (idempotency)
+        if result.get("success") and message_id:
+            try:
+                from app.utils.redis_cache import get_redis_cache
+                redis_cache = await get_redis_cache()
+                sent_key = f"telegram_sent:{message_id}"
+                telegram_msg_id = result.get("telegram_message_id", "sent")
+                # Store Telegram message ID for reference, TTL 1 hour
+                await redis_cache.set(sent_key, str(telegram_msg_id), ttl_seconds=3600)
+                logger.debug(f"Marked message {message_id} as sent to Telegram")
+            except Exception as e:
+                logger.warning(f"Failed to mark message {message_id} as sent: {e}")
         
         return {"ok": result["success"], **result}
         

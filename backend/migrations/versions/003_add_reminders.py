@@ -50,3 +50,12 @@ def downgrade() -> None:
     op.drop_table('reminders')
     sa.Enum(name='remindertype').drop(op.get_bind(), checkfirst=True)
 
+
+
+
+
+
+
+
+
+

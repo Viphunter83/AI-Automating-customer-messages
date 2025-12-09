@@ -50,3 +50,12 @@ def downgrade() -> None:
     postgresql.ENUM(name='escalationreason').drop(op.get_bind(), checkfirst=True)
     postgresql.ENUM(name='prioritylevel').drop(op.get_bind(), checkfirst=True)
 
+
+
+
+
+
+
+
+
+

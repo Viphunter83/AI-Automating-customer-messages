@@ -19,6 +19,41 @@ logger = logging.getLogger(__name__)
 settings = get_settings()
 
 
+# Задержки отправки сообщений согласно ТЗ
+SCENARIO_DELAYS = {
+    "GREETING": (2, 5),  # 2-5 секунд
+    "GREETING_TIME_REQUEST": (2, 5),  # 2-5 секунд (тоже приветствие)
+    "TECH_SUPPORT_BASIC": (5, 5),  # 5 секунд
+    "ABSENCE_REQUEST": (10, 10),  # 10 секунд
+    "REVIEW_BONUS": (2, 5),  # 2-5 секунд
+    "REFERRAL": (2, 5),  # 2-5 секунд
+    "LESSON_LINK": (2, 5),  # 2-5 секунд (отправка ссылки)
+    "LESSON_CANCELLATION": (2, 5),  # 2-5 секунд (отмена урока)
+    # Остальные сценарии без задержки или минимальная задержка
+    "DEFAULT": (0, 1),  # Мгновенно или до 1 секунды
+}
+
+
+def get_delay_for_scenario(scenario: str) -> float:
+    """
+    Получить задержку отправки для сценария согласно ТЗ
+    
+    Args:
+        scenario: Название сценария
+        
+    Returns:
+        Задержка в секундах (случайное значение в диапазоне)
+    """
+    delay_range = SCENARIO_DELAYS.get(scenario, SCENARIO_DELAYS["DEFAULT"])
+    min_delay, max_delay = delay_range
+    
+    if min_delay == max_delay:
+        return float(min_delay)
+    
+    # Случайная задержка в диапазоне
+    return random.uniform(min_delay, max_delay)
+
+
 class DeliveryResult:
     """Result of message delivery"""
     def __init__(
@@ -109,17 +144,26 @@ class MessageDeliveryService:
         }
 
     async def send_webhook_async(
-        self, webhook_data: Dict
+        self, webhook_data: Dict, delay_seconds: float = 0.0
     ) -> Dict:
         """
         Send webhook asynchronously (for background tasks)
         
+        Args:
+            webhook_data: Webhook payload
+            delay_seconds: Delay before sending (for TZ compliance)
+        
         Returns:
             Webhook result dict
         """
+        # Применить задержку если указана (приоритет над настройками)
+        if delay_seconds > 0:
+            logger.debug(f"⏳ Delaying webhook delivery by {delay_seconds:.1f} seconds (TZ requirement)")
+            await asyncio.sleep(delay_seconds)
+        
         try:
-            # Add delay before sending response (simulate "typing...")
-            if settings.delays_enabled and settings.response_delay_seconds > 0:
+            # Add delay before sending response (simulate "typing...") - только если не задана TZ задержка
+            if delay_seconds == 0 and settings.delays_enabled and settings.response_delay_seconds > 0:
                 delay = settings.response_delay_seconds
                 # Add some randomness (±1 second) for more natural feel
                 delay += random.uniform(-1.0, 1.0)
@@ -152,18 +196,33 @@ class MessageDeliveryService:
     ) -> None:
         """
         Notify operators via WebSocket asynchronously
+        
+        Now sends notifications for ALL new messages (not just escalations)
+        to enable unread message indicators
         """
-        if not webhook_data.get("requires_escalation"):
-            return
-
         try:
-            escalation_data = webhook_data.get("escalation_data")
-            if escalation_data:
-                await notify_all_operators(
-                    {
+            client_id = webhook_data.get("client_id")
+            requires_escalation = webhook_data.get("requires_escalation", False)
+            message_id = webhook_data.get("message_id")
+            response_text = webhook_data.get("response_text", "")
+            
+            # Prepare base notification
+            from datetime import datetime
+            notification = {
+                "type": "new_message",
+                "client_id": client_id,
+                "message_id": message_id,
+                "message_preview": response_text[:100] + "..." if len(response_text) > 100 else response_text,
+                "requires_escalation": requires_escalation,
+                "timestamp": datetime.utcnow().isoformat(),
+            }
+            
+            # Add escalation-specific data if escalated
+            if requires_escalation:
+                escalation_data = webhook_data.get("escalation_data")
+                if escalation_data:
+                    notification.update({
                         "type": "escalation",
-                        "client_id": webhook_data["client_id"],
-                        "message": f"New escalation from {webhook_data['client_id']}",
                         "scenario": webhook_data.get("classification", {}).get(
                             "scenario", "UNKNOWN"
                         ),
@@ -175,8 +234,11 @@ class MessageDeliveryService:
                         "is_first_message": escalation_data.get(
                             "is_first_message", False
                         ),
-                    }
-                )
+                    })
+            
+            # Send notification to all operators
+            await notify_all_operators(notification)
+            
         except Exception as ws_error:
             logger.error(
                 f"❌ WebSocket notification failed (non-critical): {str(ws_error)}"
@@ -201,25 +263,37 @@ class MessageDeliveryService:
             processed_message, message_response
         )
 
-        # Schedule webhook delivery in background
+        # Определить задержку для сценария согласно ТЗ
+        scenario = processed_message.scenario
+        delay_seconds = get_delay_for_scenario(scenario)
+        
+        if delay_seconds > 0:
+            logger.info(
+                f"⏳ Scheduling delivery with {delay_seconds:.1f}s delay for scenario {scenario} "
+                f"(TZ requirement: {SCENARIO_DELAYS.get(scenario, SCENARIO_DELAYS['DEFAULT'])} seconds)"
+            )
+
+        # Schedule webhook delivery in background with delay
         background_tasks.add_task(
             self.send_webhook_async,
             webhook_data,
+            delay_seconds,
         )
 
-        # Schedule WebSocket notification in background
+        # Schedule WebSocket notification in background (without delay for operators)
         background_tasks.add_task(
             self.notify_operators_async,
             webhook_data,
         )
 
         logger.info(
-            f"📤 Scheduled delivery for client {processed_message.original_message.client_id}"
+            f"📤 Scheduled delivery for client {processed_message.original_message.client_id} "
+            f"(scenario: {scenario}, delay: {delay_seconds:.1f}s)"
         )
 
         return DeliveryResult(
             webhook_sent=True,
-            webhook_result={"success": True, "scheduled": True},
+            webhook_result={"success": True, "scheduled": True, "delay_seconds": delay_seconds},
             websocket_notified=True,
         )
 

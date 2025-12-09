@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { ClientDashboard } from '@/components/ClientDashboard'
 import { DialogList } from '@/components/DialogList'
@@ -14,8 +14,9 @@ export default function Dashboard() {
   const [isConnected, setIsConnected] = useState(true)
   const [availableClients, setAvailableClients] = useState<string[]>([])
   const [loadingClients, setLoadingClients] = useState(false)
+  const hasAutoSelectedRef = useRef(false) // Track if we've auto-selected once
   
-  // Load available clients (open dialogs)
+  // Load available clients (open dialogs) and auto-select first one
   useEffect(() => {
     const loadClients = async () => {
       setLoadingClients(true)
@@ -37,13 +38,21 @@ export default function Dashboard() {
         })
         console.log('📋 Sorted clients:', sortedClients)
         setAvailableClients(sortedClients)
-        // Auto-select first Telegram client if none selected or if default client_123 is selected
-        if ((!clientId || clientId === 'client_123') && sortedClients.length > 0) {
-          // Prefer Telegram clients
-          const telegramClient = sortedClients.find((id: string) => id.startsWith('telegram_'))
-          const selectedClient = telegramClient || sortedClients[0]
-          console.log('📋 Auto-selecting client:', selectedClient)
-          setClientId(selectedClient)
+        
+        // Auto-select first client if none selected (only once on initial load)
+        if (!hasAutoSelectedRef.current && sortedClients.length > 0) {
+          // Check current clientId using functional update
+          setClientId((currentClientId) => {
+            if (!currentClientId) {
+              // Prefer Telegram clients
+              const telegramClient = sortedClients.find((id: string) => id.startsWith('telegram_'))
+              const selectedClient = telegramClient || sortedClients[0]
+              console.log('📋 Auto-selecting first client:', selectedClient)
+              hasAutoSelectedRef.current = true
+              return selectedClient
+            }
+            return currentClientId
+          })
         }
       } catch (error) {
         console.error('❌ Failed to load clients:', error)
@@ -56,7 +65,7 @@ export default function Dashboard() {
     // Refresh every 10 seconds
     const interval = setInterval(loadClients, 10000)
     return () => clearInterval(interval)
-  }, [clientId])
+  }, []) // Empty dependencies - only run on mount
   
   return (
     <div className="h-screen flex flex-col bg-white">
@@ -114,24 +123,49 @@ export default function Dashboard() {
       
       {/* Main Content */}
       <div className="flex-1 overflow-hidden p-4">
-        {clientId ? (
-          <ClientDashboard clientId={clientId} operatorId={operatorId} />
-        ) : (
-          <div className="h-full flex flex-col">
-            <div className="mb-4">
-              <h2 className="text-xl font-semibold mb-2">Активные диалоги</h2>
-              <p className="text-sm text-gray-600">
-                Выберите диалог для просмотра переписки или введите Client ID в поле выше
+        <div className="h-full flex gap-4">
+          {/* Left Sidebar: Dialog List */}
+          <div className="w-80 flex-shrink-0 border border-gray-200 rounded-lg bg-white overflow-hidden flex flex-col">
+            <div className="p-4 border-b border-gray-200 bg-gray-50">
+              <h2 className="text-lg font-semibold mb-1">Активные диалоги</h2>
+              <p className="text-xs text-gray-600">
+                {availableClients.length > 0 
+                  ? `${availableClients.length} активных диалогов`
+                  : 'Загрузка...'}
               </p>
             </div>
-            <div className="flex-1 overflow-hidden">
-              <DialogList
-                onSelectDialog={setClientId}
-                selectedClientId={clientId}
-              />
+            <div className="flex-1 overflow-hidden p-2">
+              {loadingClients ? (
+                <div className="flex items-center justify-center h-full">
+                  <div className="text-gray-500">Загрузка...</div>
+                </div>
+              ) : (
+                <DialogList
+                  onSelectDialog={setClientId}
+                  selectedClientId={clientId}
+                />
+              )}
             </div>
           </div>
-        )}
+
+          {/* Right Side: Chat History */}
+          <div className="flex-1 overflow-hidden">
+            {clientId ? (
+              <ClientDashboard clientId={clientId} operatorId={operatorId} />
+            ) : (
+              <div className="h-full flex items-center justify-center border border-gray-200 rounded-lg bg-gray-50">
+                <div className="text-center text-gray-500">
+                  <p className="text-lg mb-2">Выберите диалог для просмотра истории</p>
+                  <p className="text-sm">
+                    {availableClients.length > 0 
+                      ? 'Кликните на диалог в списке слева'
+                      : 'Ожидание обращений клиентов...'}
+                  </p>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   )

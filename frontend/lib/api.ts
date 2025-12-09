@@ -14,6 +14,11 @@ export const api = axios.create({
 // Response interceptor for validation and error handling
 api.interceptors.response.use(
   (response) => {
+    // Skip validation for blob responses (file downloads)
+    if (response.config.responseType === 'blob' || response.data instanceof Blob) {
+      return response;
+    }
+    
     // Validate response data based on endpoint
     const url = response.config.url || "";
     
@@ -173,4 +178,33 @@ export const searchAPI = {
     api.get(`/api/search/export/dialog/${clientId}.${format}`, {
       responseType: format === 'csv' ? 'blob' : 'json',
     }),
+};
+
+// Operator API
+export const operatorAPI = {
+  sendMessage: (clientId: string, content: string) =>
+    api.post("/api/operator/send-message", {
+      client_id: clientId,
+      content,
+    }),
+  
+  getTelegramFileUrl: (fileId: string) =>
+    api.get(`/api/operator/telegram-file-url/${fileId}`),
+  
+  getTelegramFile: (fileId: string) =>
+    api.get(`/api/operator/telegram-file/${fileId}`, {
+      responseType: 'blob',
+    }),
+};
+
+// Unread messages API
+export const unreadAPI = {
+  markAsRead: (clientId: string, messageId?: string) =>
+    api.post(`/api/unread/${clientId}/mark-read${messageId ? `?message_id=${messageId}` : ''}`),
+  
+  getUnreadCount: (clientId: string) =>
+    api.get(`/api/unread/${clientId}/count`),
+  
+  getAllUnreadCounts: () =>
+    api.get("/api/unread/counts"),
 };

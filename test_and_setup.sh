@@ -93,3 +93,12 @@ echo "   cd frontend && vercel"
 echo "3. В Vercel Dashboard добавьте переменную:"
 echo "   NEXT_PUBLIC_API_URL = $RAILWAY_URL"
 
+
+
+
+
+
+
+
+
+

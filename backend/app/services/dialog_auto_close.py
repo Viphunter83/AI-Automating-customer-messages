@@ -208,13 +208,31 @@ class DialogAutoCloseService:
                 logger.error(f"Failed to create farewell response for {client_id}")
                 return None
 
-            # Send via webhook
-            webhook_sender = WebhookSender()
+            # Send via webhook - использовать webhook_url из сессии
+            webhook_url = session.webhook_url if session else None
+            platform = session.platform if session else None
+            chat_id = session.chat_id if session else None
+            
+            logger.info(
+                f"📤 Sending farewell via webhook for {client_id}: "
+                f"webhook_url={webhook_url}, platform={platform}, chat_id={chat_id}"
+            )
+            
+            webhook_sender = WebhookSender(
+                platform_webhook_url=webhook_url,
+                platform=platform,
+                chat_id=chat_id,
+            )
             webhook_result = await webhook_sender.send_response(
                 client_id=client_id,
                 response_text=response_text,
                 message_id=str(response_msg.id),
                 classification={"scenario": "FAREWELL", "confidence": 1.0},
+            )
+            
+            logger.info(
+                f"📤 Farewell webhook result for {client_id}: {webhook_result.get('success')}, "
+                f"error: {webhook_result.get('error')}"
             )
 
             # Update farewell timestamp (already set above as lock, but update after successful send)

@@ -17,8 +17,8 @@ class MassOutageDetector:
     def __init__(self, session: AsyncSession):
         self.session = session
         self.similarity_threshold = 0.7  # Messages are similar if >70% match
-        self.time_window_minutes = 15  # Analyze messages from last 15 minutes
-        self.mass_threshold = 10  # Need at least 10 similar messages to trigger
+        self.time_window_minutes = 10  # Analyze messages from last 10 minutes (TZ requirement)
+        self.mass_threshold = 5  # Need at least 5 similar messages to trigger (TZ requirement)
 
     def _calculate_similarity(self, text1: str, text2: str) -> float:
         """Calculate similarity between two texts (0-1)"""

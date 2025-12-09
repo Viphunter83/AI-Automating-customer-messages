@@ -83,3 +83,12 @@ class TelegramResponseSender:
                 "error": f"Unexpected error: {str(e)}",
             }
 
+
+
+
+
+
+
+
+
+

@@ -242,6 +242,7 @@ class MessageProcessingService:
             scenario=scenario,
             confidence=confidence,
             client_id=client_id,
+            message_content=content,  # Передаем текст для анализа эмоций
         )
 
         # Check scenario-specific escalation rules
@@ -250,14 +251,22 @@ class MessageProcessingService:
             "COMPLAINT",
             "MISSING_TRAINER",
             "CROSS_EXTENSION",
+            "LESSON_CANCELLATION",  # Отмена урока - эскалируется если клиент возражает
             "UNKNOWN",
         ]
         
         # Check if message contains media (photo/document) - requires escalation per TZ
+        # Улучшенная детекция медиа на основе реальных данных
         has_media = (
             "[ФОТО получено" in content
             or "[ДОКУМЕНТ получен" in content
             or "[ВИДЕО получено" in content
+            or "[PHOTO]" in content.upper()
+            or "[DOCUMENT]" in content.upper()
+            or "[VIDEO]" in content.upper()
+            or "скриншот" in content.lower()
+            or "справка" in content.lower() and ("пришл" in content.lower() or "отправ" in content.lower())
+            or "отзыв" in content.lower() and ("пришл" in content.lower() or "отправ" in content.lower())
         )
         
         # Escalate if media received (especially for REVIEW_BONUS and ABSENCE_REQUEST)
@@ -336,9 +345,12 @@ class MessageProcessingService:
         # Determine if first message
         is_first_message = await self.determine_first_message(client_id)
 
-        # Save original message
+        # Save original message with webhook info
         original_message = await self.save_original_message(
-            client_id, content, is_first_message
+            client_id, content, is_first_message,
+            webhook_url=webhook_url,
+            platform=platform,
+            chat_id=chat_id,
         )
 
         # Process text
@@ -394,11 +406,11 @@ class MessageProcessingService:
 
         # Evaluate escalation
         escalation_info = await self.evaluate_escalation(
-            str(original_message.id),
-            scenario,
-            confidence,
-            client_id,
-            content,
+            message_id=str(original_message.id),
+            scenario=scenario,
+            confidence=confidence,
+            client_id=client_id,
+            content=content,
         )
 
         # Update message with priority and escalation reason

@@ -1,16 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useChatSession, useDialog, useCloseDialog, useReopenDialog } from '@/hooks/useMessages'
 import { ChatHistory } from '@/components/ChatHistory'
 import { MessageFeedback } from '@/components/MessageFeedback'
 import { DialogStatusBadge } from '@/components/DialogStatusBadge'
 import { PriorityBadge } from '@/components/PriorityBadge'
+import { OperatorMessageInput } from '@/components/OperatorMessageInput'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { formatDistanceToNow } from 'date-fns'
 import { ru } from 'date-fns/locale'
 import { useMemo } from 'react'
+import { unreadAPI } from '@/lib/api'
+import { useQueryClient } from '@tanstack/react-query'
 
 interface ClientDashboardProps {
   clientId: string
@@ -24,6 +27,20 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
   const reopenDialog = useReopenDialog()
   const [selectedMessageId, setSelectedMessageId] = useState<string | null>(null)
   const [sortByPriority, setSortByPriority] = useState(true)
+  const queryClient = useQueryClient()
+  
+  // Mark messages as read when dialog is opened/viewed
+  useEffect(() => {
+    if (clientId && operatorId && messages.length > 0) {
+      // Mark all messages as read when viewing the dialog
+      unreadAPI.markAsRead(clientId).then(() => {
+        // Invalidate dialogs query to refresh unread counts
+        queryClient.invalidateQueries({ queryKey: ['dialogs'] })
+      }).catch((error) => {
+        console.error('Failed to mark messages as read:', error)
+      })
+    }
+  }, [clientId, operatorId, messages.length, queryClient])
   
   // Sort messages by priority (critical > high > medium > low)
   const sortedMessages = useMemo(() => {
@@ -100,14 +117,34 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
                   try {
                     const { searchAPI } = await import('@/lib/api')
                     const response = await searchAPI.exportDialog(clientId, 'csv')
-                    const blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
+                    // Check if response.data is already a Blob
+                    let blob: Blob
+                    if (response.data instanceof Blob) {
+                      blob = response.data
+                    } else {
+                      blob = new Blob([response.data], { type: 'text/csv;charset=utf-8;' })
+                    }
+                    
+                    const url = URL.createObjectURL(blob)
                     const link = document.createElement('a')
-                    link.href = URL.createObjectURL(blob)
-                    link.download = `dialog_${clientId}_${new Date().toISOString().split('T')[0]}.csv`
+                    link.href = url
+                    const fileName = `dialog_${clientId}_${new Date().toISOString().split('T')[0]}.csv`
+                    link.download = fileName
+                    link.style.display = 'none'
+                    document.body.appendChild(link)
                     link.click()
+                    
+                    // Clean up after a short delay
+                    setTimeout(() => {
+                      document.body.removeChild(link)
+                      URL.revokeObjectURL(url)
+                    }, 100)
+                    
+                    // Show success notification
+                    alert(`✅ Файл "${fileName}" успешно скачан!\n\nФайл сохранен в папку "Загрузки" (Downloads).\nВы можете открыть его в Excel или другом редакторе CSV.`)
                   } catch (error) {
                     console.error('Export error:', error)
-                    alert('Ошибка при экспорте диалога')
+                    alert('❌ Ошибка при экспорте диалога. Проверьте консоль браузера для подробностей.')
                   }
                 }}
               >
@@ -121,13 +158,26 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
                     const { searchAPI } = await import('@/lib/api')
                     const response = await searchAPI.exportDialog(clientId, 'json')
                     const blob = new Blob([JSON.stringify(response.data, null, 2)], { type: 'application/json' })
+                    const url = URL.createObjectURL(blob)
                     const link = document.createElement('a')
-                    link.href = URL.createObjectURL(blob)
-                    link.download = `dialog_${clientId}_${new Date().toISOString().split('T')[0]}.json`
+                    link.href = url
+                    const fileName = `dialog_${clientId}_${new Date().toISOString().split('T')[0]}.json`
+                    link.download = fileName
+                    link.style.display = 'none'
+                    document.body.appendChild(link)
                     link.click()
+                    
+                    // Clean up after a short delay
+                    setTimeout(() => {
+                      document.body.removeChild(link)
+                      URL.revokeObjectURL(url)
+                    }, 100)
+                    
+                    // Show success notification
+                    alert(`✅ Файл "${fileName}" успешно скачан!\n\nФайл сохранен в папку "Загрузки" (Downloads).\nВы можете открыть его в текстовом редакторе.`)
                   } catch (error) {
                     console.error('Export error:', error)
-                    alert('Ошибка при экспорте диалога')
+                    alert('❌ Ошибка при экспорте диалога. Проверьте консоль браузера для подробностей.')
                   }
                 }}
               >
@@ -162,6 +212,11 @@ export function ClientDashboard({ clientId, operatorId }: ClientDashboardProps) 
           isLoading={isLoading}
           clientId={clientId}
         />
+        
+        {/* Operator Message Input */}
+        <div className="p-4 border-t border-gray-200 bg-white">
+          <OperatorMessageInput clientId={clientId} operatorId={operatorId} />
+        </div>
       </div>
       
       {/* Feedback Panel */}

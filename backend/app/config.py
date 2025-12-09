@@ -17,11 +17,19 @@ class Settings(BaseSettings):
     debug: bool = False
     log_level: str = "INFO"
 
-    # Database
-    database_url: str
-    # Supabase fields (optional, для будущего использования)
-    supabase_url: str = ""
-    supabase_anon_key: str = ""
+    # Database - Supabase (прямое PostgreSQL подключение через параметры)
+    # Конфигурация соответствует примеру заказчика
+    supabase_url: str = ""  # URL для REST API Gateway (http://kong:8000 или внешний URL)
+    supabase_key: str = ""  # Role Key (для REST API, опционально)
+    supabase_user: str = "postgres"  # Пользователь БД
+    supabase_password: str = ""  # Пароль БД (может быть пустым, если не требуется)
+    supabase_host: str = ""  # Имя сервиса БД в Docker сети (если пусто, используется "db")
+    supabase_port: int = 5437  # Порт БД (обязательно 5437!)
+    supabase_db: str = "postgres"  # Имя базы данных
+    database_echo: bool = False  # Логирование SQL запросов
+    
+    # Legacy: DATABASE_URL для обратной совместимости (если указан, используется напрямую)
+    database_url: str = ""
 
     # OpenAI
     openai_api_key: str
@@ -88,16 +96,23 @@ class Settings(BaseSettings):
         """
         errors = []
 
-        # Check database URL
-        if not self.database_url or self.database_url.startswith(
-            "postgresql+asyncpg://"
-        ):
-            if (
-                "localhost" not in self.database_url
-                and "postgres" not in self.database_url
-            ):
-                # Only validate if it's not a local development setup
-                pass
+        # Check database configuration (соответствует примеру заказчика)
+        # Вариант 1: DATABASE_URL указан напрямую
+        if self.database_url:
+            if not self.database_url.startswith("postgresql"):
+                errors.append("DATABASE_URL must start with 'postgresql' or 'postgresql+asyncpg'")
+        
+        # Вариант 2: Используются параметры Supabase
+        # В примере заказчика SUPABASE_HOST и SUPABASE_PASSWORD могут быть пустыми
+        # Если SUPABASE_HOST пустой - используется "db" по умолчанию
+        # Если SUPABASE_PASSWORD пустой - подключаемся без пароля (если разрешено)
+        else:
+            # Проверяем только обязательные параметры
+            if not self.supabase_db:
+                errors.append(
+                    "SUPABASE_DB is required. "
+                    "Get it from Supabase Service → Environment Variables → POSTGRES_DB"
+                )
 
         # Check OpenAI API key
         if (

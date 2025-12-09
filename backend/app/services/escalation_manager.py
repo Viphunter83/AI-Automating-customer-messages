@@ -1,4 +1,5 @@
 import logging
+import re
 import uuid
 from datetime import datetime, timedelta
 from enum import Enum
@@ -35,8 +36,70 @@ class EscalationManager:
         self.session = session
         self.confidence_threshold = 0.85
 
+    def analyze_emotion(self, text: str) -> Dict[str, any]:
+        """
+        Analyze emotional tone of message
+        
+        Returns:
+            {
+                "is_negative": bool,
+                "score": float (0-1, higher = more negative),
+                "indicators": List[str]
+            }
+        """
+        text_lower = text.lower()
+        emotion_score = 0.0
+        indicators = []
+        
+        # Негативные индикаторы из реальных данных
+        negative_patterns = {
+            r"!{2,}": 0.2,  # Множественные восклицательные знаки
+            r"\?{2,}": 0.15,  # Множественные вопросительные знаки
+            r"что происходит": 0.4,
+            r"не предупредили": 0.5,
+            r"недоволен": 0.5,
+            r"плохо": 0.4,
+            r"плох": 0.4,
+            r"жалоб": 0.6,
+            r"претензи": 0.6,
+            r"некачественн": 0.5,
+            r"не понравилось": 0.4,
+            r"ужасн": 0.5,
+            r"проблем": 0.3,
+            r"не работает": 0.3,
+            r"не могу": 0.2,
+            r"не получил": 0.3,
+            r"не пришло": 0.3,
+        }
+        
+        for pattern, weight in negative_patterns.items():
+            matches = len(re.findall(pattern, text_lower))
+            if matches > 0:
+                emotion_score += weight * min(matches, 3)  # Cap at 3 matches
+                indicators.append(pattern)
+        
+        # Эмодзи как индикаторы эмоций
+        emoji_patterns = {
+            r"😔|😢|😠|😡|😤": 0.3,  # Негативные эмодзи
+            r"😊|😃|😄|🙂": -0.2,  # Позитивные эмодзи (снижают негатив)
+        }
+        
+        for pattern, weight in emoji_patterns.items():
+            if re.search(pattern, text):
+                emotion_score += weight
+        
+        # Нормализация score (0-1)
+        emotion_score = max(0.0, min(1.0, emotion_score))
+        
+        return {
+            "is_negative": emotion_score > 0.5,
+            "score": emotion_score,
+            "indicators": indicators[:5]  # Первые 5 индикаторов
+        }
+
     async def evaluate_escalation(
-        self, message_id: str, scenario: str, confidence: float, client_id: str
+        self, message_id: str, scenario: str, confidence: float, client_id: str, 
+        message_content: Optional[str] = None
     ) -> Dict[str, any]:
         """
         Evaluate if message should be escalated and at what priority
@@ -84,6 +147,24 @@ class EscalationManager:
         if await self._has_recent_escalations(client_id, hours=1):
             reasons.append(EscalationReason.COMPLAINT)
             base_level = EscalationLevel.CRITICAL
+        
+        # Check 5: Analyze emotional tone (новое на основе реальных данных)
+        emotion_data = None
+        if message_content:
+            emotion_data = self.analyze_emotion(message_content)
+            if emotion_data["is_negative"]:
+                reasons.append(EscalationReason.COMPLAINT)
+                # Повысить приоритет если негативные эмоции
+                if base_level == EscalationLevel.LOW:
+                    base_level = EscalationLevel.MEDIUM
+                elif base_level == EscalationLevel.MEDIUM:
+                    base_level = EscalationLevel.HIGH
+                elif base_level == EscalationLevel.HIGH:
+                    base_level = EscalationLevel.CRITICAL
+                logger.info(
+                    f"⚠️ Negative emotion detected (score: {emotion_data['score']:.2f}) "
+                    f"for client {client_id}, escalating"
+                )
 
         return {
             "should_escalate": len(reasons) > 0 or confidence < 0.7,
@@ -91,6 +172,7 @@ class EscalationManager:
             "reasons": [r.value for r in reasons],
             "priority_queue": self._get_priority_queue(base_level),
             "confidence": confidence,
+            "emotion_analysis": emotion_data,
         }
 
     async def _get_recent_requests(self, client_id: str, minutes: int = 10) -> int:

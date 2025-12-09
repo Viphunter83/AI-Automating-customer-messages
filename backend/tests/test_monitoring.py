@@ -76,3 +76,12 @@ async def test_get_stats_summary(async_session, test_client_id):
     assert stats["total_messages"] >= 1
     assert stats["total_clients"] >= 1
 
+
+
+
+
+
+
+
+
+

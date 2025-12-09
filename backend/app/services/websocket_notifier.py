@@ -54,3 +54,12 @@ async def notify_all_operators(message: dict):
     for operator_id in list(_active_connections.keys()):
         await notify_operator(operator_id, message)
 
+
+
+
+
+
+
+
+
+

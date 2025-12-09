@@ -149,3 +149,12 @@ class MassNotificationService:
         
         return result
 
+
+
+
+
+
+
+
+
+

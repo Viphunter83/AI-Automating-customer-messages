@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from app import create_app
-from app.routes import health, messages, feedback, ws, admin, search, reminders, dialogs, auth, telegram, monitoring
+from app.routes import health, messages, feedback, ws, admin, search, reminders, dialogs, auth, telegram, monitoring, operator, unread
 import logging
 import asyncio
 import subprocess
@@ -29,6 +29,8 @@ app.include_router(dialogs.router)
 app.include_router(ws.router)
 app.include_router(telegram.router)
 app.include_router(monitoring.router)  # Monitoring and metrics
+app.include_router(operator.router)  # Operator endpoints
+app.include_router(unread.router)  # Unread messages tracking
 
 @app.get("/")
 async def root():

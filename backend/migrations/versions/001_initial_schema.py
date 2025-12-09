@@ -127,3 +127,12 @@ def downgrade() -> None:
     sa.Enum(name='scenariotype').drop(op.get_bind(), checkfirst=True)
     sa.Enum(name='messagetype').drop(op.get_bind(), checkfirst=True)
 
+
+
+
+
+
+
+
+
+

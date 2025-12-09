@@ -47,3 +47,12 @@ def downgrade() -> None:
     op.drop_table('chat_sessions')
     postgresql.ENUM(name='dialogstatus').drop(op.get_bind(), checkfirst=True)
 
+
+
+
+
+
+
+
+
+

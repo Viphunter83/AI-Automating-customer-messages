@@ -10,12 +10,34 @@ class TextProcessor:
     """Process and normalize text input from clients"""
 
     # Common typos and fixes (русский язык)
+    # Обновлено на основе реальных данных из tickets.json
     TYPO_MAP = {
         "заити": "зайти",
         "не могу заити": "не могу зайти",
         "кэш": "кеш",
         "кеш": "кеш",
         "ошибка отображ": "ошибка отображения",
+        "отсутств": "отсутствие",
+        "тренер": "тренер",
+        "занятие": "занятие",
+        "урок": "урок",
+        "расписание": "расписание",
+        "перенос": "перенос",
+        "перенести": "перенести",
+        "боле": "болеет",
+        "болезн": "болезнь",
+        "не смогу": "не смогу",
+        "не придет": "не придет",
+        "не пришел": "не пришел",
+        "не появился": "не появился",
+        "ссылка": "ссылка",
+        "пароль": "пароль",
+        "платформ": "платформа",
+        "недоволен": "недоволен",
+        "жалоб": "жалоба",
+        "продлить": "продлить",
+        "продление": "продление",
+        "абонемент": "абонемент",
     }
 
     # Common keyboard patterns (случайный клавиатурный ввод)
@@ -23,6 +45,16 @@ class TextProcessor:
         r"^[а-я]{20,}$",  # Long repeated characters
         r"^\d{15,}$",  # Many random numbers
         r"^[a-z]{20,}$",  # Many random Latin chars
+        r"^[а-яё]{1,2}\s+[а-яё]{1,2}\s+[а-яё]{1,2}$",  # Very short words only
+    ]
+    
+    # Email forwarding patterns (из реальных данных)
+    EMAIL_FORWARDING_PATTERNS = [
+        r"отправлено мобильной яндекс",
+        r"мобильной яндекс почты",
+        r"яндекс почты пересылаемое",
+        r"завершение пересылаемого сообщения",
+        r"пересылаемое сообщение",
     ]
 
     def __init__(self, typo_threshold: float = 0.8):
@@ -120,10 +152,31 @@ class TextProcessor:
         Detect and remove noise/random input
         Returns None if text is identified as noise
         """
+        text_lower = text.lower()
+        
+        # Check keyboard noise patterns
         for pattern in self.KEYBOARD_NOISE_PATTERNS:
-            if re.match(pattern, text.lower()):
+            if re.match(pattern, text_lower):
                 logger.warning(f"Detected keyboard noise: {text[:50]}")
                 return None
+        
+        # Remove email forwarding artifacts (из реальных данных)
+        for pattern in self.EMAIL_FORWARDING_PATTERNS:
+            if pattern in text_lower:
+                # Удалить артефакты пересылки, но оставить основной текст
+                text = re.sub(pattern, "", text, flags=re.IGNORECASE)
+                text = text.strip()
+                logger.debug(f"Removed email forwarding artifact: {pattern}")
+        
+        # Remove HTML tags if present (из реальных данных)
+        text = re.sub(r"<[^>]+>", "", text)
+        
+        # Remove excessive whitespace after cleaning
+        text = re.sub(r"\s+", " ", text).strip()
+        
+        # If text becomes too short after cleaning, might be noise
+        if len(text) < 3:
+            return None
 
         return text
 

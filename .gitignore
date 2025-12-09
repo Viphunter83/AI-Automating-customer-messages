@@ -3,6 +3,14 @@
 .env.local
 .env.*.local
 .env.production
+.env.production.local
+backend/.env
+backend/.env.local
+backend/.env.production
+frontend/.env
+frontend/.env.local
+frontend/.env.production
+frontend/.env.production.local
 
 # Python
 __pycache__/
@@ -70,3 +78,10 @@ logs/
 backup_*
 .vercel
 .env*.local
+.cursor/
+
+# Large data files
+tickets.json
+training_dataset.json
+few_shot_examples.json
+tickets_analysis_report.txt

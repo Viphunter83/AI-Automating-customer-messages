@@ -75,3 +75,12 @@ echo -e "  - Frontend: http://localhost:3000"
 echo -e "  - Admin: http://localhost:3000/admin"
 echo -e "  - Dashboard: http://localhost:3000/dashboard"
 
+
+
+
+
+
+
+
+
+

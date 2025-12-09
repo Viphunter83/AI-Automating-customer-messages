@@ -145,3 +145,12 @@ async def test_cancel_client_reminders(async_session, test_client_id):
     assert reminder1.is_cancelled is True
     assert reminder2.is_cancelled is True
 
+
+
+
+
+
+
+
+
+

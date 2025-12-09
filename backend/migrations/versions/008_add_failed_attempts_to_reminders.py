@@ -27,3 +27,12 @@ def downgrade() -> None:
     op.drop_column('reminders', 'last_failed_at')
     op.drop_column('reminders', 'failed_attempts')
 
+
+
+
+
+
+
+
+
+

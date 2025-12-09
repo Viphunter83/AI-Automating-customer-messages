@@ -46,6 +46,7 @@ async def get_metrics(session: AsyncSession = Depends(get_session)) -> Dict:
         "classifications": {},
         "reminders": {},
         "performance": {},
+        "duplicates": {},
     }
     
     try:
@@ -98,6 +99,25 @@ async def get_metrics(session: AsyncSession = Depends(get_session)) -> Dict:
         # Performance metrics (basic)
         metrics["performance"]["messages_per_hour"] = metrics["messages"]["last_hour"]
         metrics["performance"]["messages_per_day"] = metrics["messages"]["last_24h"]
+        
+        # Duplicate prevention metrics (from Redis)
+        try:
+            from app.utils.redis_cache import get_redis_cache
+            redis_cache = await get_redis_cache()
+            
+            telegram_duplicates = await redis_cache.get("metrics:telegram_duplicates")
+            webhook_duplicates = await redis_cache.get("metrics:webhook_duplicates")
+            
+            metrics["duplicates"]["telegram_skipped"] = int(telegram_duplicates) if telegram_duplicates else 0
+            metrics["duplicates"]["webhook_skipped"] = int(webhook_duplicates) if webhook_duplicates else 0
+            metrics["duplicates"]["total_skipped"] = (
+                metrics["duplicates"]["telegram_skipped"] + metrics["duplicates"]["webhook_skipped"]
+            )
+        except Exception as e:
+            logger.debug(f"Failed to get duplicate metrics: {e}")
+            metrics["duplicates"]["telegram_skipped"] = 0
+            metrics["duplicates"]["webhook_skipped"] = 0
+            metrics["duplicates"]["total_skipped"] = 0
         
     except Exception as e:
         logger.error(f"Error calculating metrics: {e}", exc_info=True)

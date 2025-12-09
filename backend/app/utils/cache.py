@@ -158,3 +158,12 @@ def cached(ttl_seconds: int = 3600, key_prefix: str = ""):
 def get_cache() -> SimpleCache:
     """Get global cache instance"""
     return _cache
+
+
+
+
+
+
+
+
+

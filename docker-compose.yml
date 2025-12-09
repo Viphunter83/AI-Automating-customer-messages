@@ -4,15 +4,15 @@ services:
     image: postgres:15-alpine
     container_name: ai_support_db
     environment:
-      POSTGRES_USER: support_user
-      POSTGRES_PASSWORD: support_pass
-      POSTGRES_DB: ai_support
+      POSTGRES_USER: ${DB_USER:-support_user}
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-support_pass}
+      POSTGRES_DB: ${DB_NAME:-ai_support}
     ports:
       - "5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U support_user"]
+      test: ["CMD-SHELL", "pg_isready -U ${DB_USER:-support_user}"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -42,14 +42,18 @@ services:
       - ./backend/.env
     environment:
       # Override DATABASE_URL for Docker network (use postgres service name instead of localhost)
-      DATABASE_URL: postgresql+asyncpg://support_user:support_pass@postgres:5432/ai_support
+      DATABASE_URL: postgresql+asyncpg://${DB_USER:-support_user}:${DB_PASSWORD:-support_pass}@postgres:5432/${DB_NAME:-ai_support}
       # Override REDIS_URL for Docker network (use redis service name instead of localhost)
       REDIS_URL: redis://redis:6379/0
-      # Telegram Bot settings
-      TELEGRAM_BOT_TOKEN: "8134362586:AAGCy3Q3tGgM8j1jz1tn3ClPRcidQCPcDSI"
-      TELEGRAM_ENABLED: "true"
-      TELEGRAM_WEBHOOK_URL: ""
-      TELEGRAM_WEBHOOK_SECRET: ""
+      # Docker environment flag (used by Telegram bot to determine API URL)
+      DOCKER_ENV: "true"
+      # Telegram Bot settings (loaded from backend/.env)
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_ENABLED: ${TELEGRAM_ENABLED:-false}
+      TELEGRAM_WEBHOOK_URL: ${TELEGRAM_WEBHOOK_URL:-}
+      TELEGRAM_WEBHOOK_SECRET: ${TELEGRAM_WEBHOOK_SECRET:-}
+      # Webhook base URL for Telegram responses (internal Docker network)
+      TELEGRAM_WEBHOOK_BASE_URL: ${TELEGRAM_WEBHOOK_BASE_URL:-http://backend:8000}
       # All other variables (OPENAI_API_KEY, SECRET_KEY, etc.) are loaded from backend/.env
       # via env_file
     depends_on:
@@ -79,7 +83,7 @@ services:
     volumes:
       - ./frontend:/app
       - /app/node_modules
-    command: sh -c "npm run build && npm start"
+    command: sh -c "npm run dev"
 
 volumes:
   postgres_data:
