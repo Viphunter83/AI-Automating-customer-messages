@@ -5,7 +5,7 @@ services:
     build:
       context: ./backend
       dockerfile: Dockerfile
-    container_name: neiromatrius-backend
+    # container_name removed - Dokploy will auto-generate container name
     restart: unless-stopped
     ports:
       - "8000:8000"
@@ -15,7 +15,7 @@ services:
       DATABASE_URL: ${DATABASE_URL}
       
       # Redis (optional, falls back to in-memory cache if not available)
-      # If Redis service is deployed, use: redis://neiromatrius-redis:6379/0
+      # If Redis service is deployed, use service name: redis://redis:6379/0
       # If external Redis, use your Redis URL
       # If not set, will use in-memory cache (not recommended for production with multiple instances)
       REDIS_URL: ${REDIS_URL:-}
@@ -54,10 +54,5 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-    networks:
-      - neiromatrius-network
-
-networks:
-  neiromatrius-network:
-    external: true
+    # Networks removed - Dokploy uses default network automatically
 

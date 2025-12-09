@@ -3,7 +3,7 @@ version: '3.8'
 services:
   redis:
     image: redis:7-alpine
-    container_name: neiromatrius-redis
+    # container_name removed - Dokploy will auto-generate container name
     restart: unless-stopped
     ports:
       - "6379:6379"
@@ -16,15 +16,10 @@ services:
       timeout: 5s
       retries: 5
       start_period: 10s
-    networks:
-      - neiromatrius-network
+    # Networks removed - Dokploy uses default network automatically
 
 volumes:
   redis_data:
-
-networks:
-  neiromatrius-network:
-    external: true
 
 
 

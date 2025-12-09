@@ -49,21 +49,31 @@
 1. В Dokploy перейдите в **Applications** → **New Application**
 2. Выберите **Docker Compose**
 3. Настройки:
-   - **Name:** `neiromatrius-backend`
+   - **Name:** `neiromatrius-backend` (или любое другое имя)
    - **Git Source:** Укажите ваш GitHub репозиторий
-   - **Branch:** `main` (или ваша рабочая ветка)
+   - **Branch:** `dev` (или ваша рабочая ветка)
    - **Docker Compose File:** `dokploy/docker-compose.backend.yml`
    - **Root Directory:** `/` (корень репозитория)
+   
+**Важно:** 
+- Dokploy автоматически создаст контейнер и сеть
+- Не указывайте `container_name` в docker-compose файле - Dokploy сам создаст имя
+- Для связи между сервисами используйте имя сервиса (например, `backend`, `redis`)
 
 ### 2.2 Создание Frontend сервиса
 
 1. Создайте новый **Docker Compose** сервис
 2. Настройки:
-   - **Name:** `neiromatrius-frontend`
+   - **Name:** `neiromatrius-frontend` (или любое другое имя)
    - **Git Source:** Тот же репозиторий
-   - **Branch:** `main`
+   - **Branch:** `dev` (или ваша рабочая ветка)
    - **Docker Compose File:** `dokploy/docker-compose.frontend.yml`
    - **Root Directory:** `/` (корень репозитория)
+   
+**Важно:**
+- Убедитесь, что `BACKEND_API_URL` указывает на правильный сервис
+- Если backend в том же Dokploy проекте, используйте имя сервиса: `http://backend:8000`
+- Если backend на другом домене, используйте полный URL
 
 ### 2.3 Создание Redis сервиса (рекомендуется для production)
 
@@ -72,9 +82,9 @@
 **Шаги:**
 
 1. В Dokploy создайте новый **Docker Compose** сервис:
-   - **Name:** `neiromatrius-redis`
+   - **Name:** `neiromatrius-redis` (или любое другое имя)
    - **Git Source:** Укажите ваш GitHub репозиторий (тот же, что для backend/frontend)
-   - **Branch:** `main` (или ваша рабочая ветка)
+   - **Branch:** `dev` (или ваша рабочая ветка)
    - **Docker Compose File:** `dokploy/docker-compose.redis.yml`
    - **Root Directory:** `/` (корень репозитория)
 
@@ -82,10 +92,15 @@
 
 3. Дождитесь успешного деплоя Redis
 
+4. **Настройте REDIS_URL в Backend:**
+   - Если Redis в том же Dokploy проекте: `REDIS_URL=redis://redis:6379/0`
+   - Если Redis на другом сервисе: используйте полный URL
+
 **Примечание:** 
 - Redis опционален - система будет работать с in-memory cache, но для production с несколькими инстансами backend Redis необходим для предотвращения дубликатов сообщений
 - Redis разворачивается из того же Git репозитория, что и остальные сервисы
 - Это не встроенный template Dokploy, а наш собственный Docker Compose файл
+- Для связи между сервисами используйте имя сервиса (например, `redis` вместо `neiromatrius-redis`)
 
 ---
 

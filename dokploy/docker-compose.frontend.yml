@@ -5,7 +5,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
-    container_name: neiromatrius-frontend
+    # container_name removed - Dokploy will auto-generate container name
     restart: unless-stopped
     ports:
       - "3000:3000"
@@ -15,19 +15,15 @@ services:
       NEXT_PUBLIC_API_URL: ${NEXT_PUBLIC_API_URL:-/api}
       
       # Backend API URL (for server-side requests)
-      # In Dokploy, services in the same network can communicate using container names
+      # In Dokploy, use service name or external URL
+      # If backend is in same Dokploy project, use service name: backend
       # Or use external URL if backend is on different service/domain
-      BACKEND_API_URL: ${BACKEND_API_URL:-http://neiromatrius-backend:8000}
+      BACKEND_API_URL: ${BACKEND_API_URL:-http://backend:8000}
     healthcheck:
       test: ["CMD", "node", "-e", "require('http').get('http://localhost:3000', (r) => {if (r.statusCode !== 200) throw new Error(r.statusCode)})"]
       interval: 30s
       timeout: 10s
       retries: 3
       start_period: 40s
-    networks:
-      - neiromatrius-network
-
-networks:
-  neiromatrius-network:
-    external: true
+    # Networks removed - Dokploy uses default network automatically
 
